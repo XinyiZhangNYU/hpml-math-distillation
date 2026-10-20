@@ -1,0 +1,68 @@
+{
+ "stage": 2,
+ "date": "2026-10-19",
+ "variants_py_sha256": "abc9f206e01cda8d012f538d0a232170c58e46395754771469ba0a5ee5cb7af3",
+ "stage1_manifest_sha256": "f3ca139494c59989de14dcdce06369b4418274b81a2abb777839098bcbdba34f",
+ "stage1_zip_sha256": "87055cbc387afdfd92165017c5a341ba9c8fb6f29f1cb99131be4a7bdd773b71",
+ "tiers": {
+  "tier1_variants": "tier1_variants.jsonl (this directory)",
+  "tier2": [
+   "tier2_aime2026.jsonl",
+   "tier2_hmmt_feb2026.jsonl"
+  ],
+  "tier3": "tier3_math500.jsonl"
+ },
+ "counts": {
+  "variants": 90,
+  "families": 30,
+  "reserve_used": 0,
+  "pool_before": 6357,
+  "removed_for_variants": 1,
+  "pool_after": 6356,
+  "review_pairs": 16,
+  "other_overlaps_ge_0.3": 21,
+  "other_overlaps_ge_0.5": 0,
+  "cross_family_pairs_ge_0.3": 0
+ },
+ "answer_checks": "every variant: independent check == recorded value == value of the LaTeX answer; wording variants also == source reference answer. Not yet parsed by math-verify (needs Linux).",
+ "files": {
+  "tier1_variants.jsonl": {
+   "sha256": "c5e1eb3cea9ddcabdadd93952951cc1673968083c113662926c8c2245e16331b",
+   "rows": 90
+  },
+  "train_eligible_pool.jsonl": {
+   "sha256": "d451355f171602e0ca55b48f4090f7829d99585df8d73bf65ec85b0011ea4a54",
+   "rows": 6356
+  },
+  "stage2_dedup.json": {
+   "sha256": "77c6f9fc00b54dc971fcf8d1c442dd445a4106262dcb59db3eb8ea1b789a61ef"
+  }
+ },
+ "stage1_files": {
+  "tier2_aime2026.jsonl": {
+   "sha256": "67dbd42cc6327589a164a1f831b47690903af619124ea87e49e55863d27759da",
+   "rows": 30,
+   "path": "validation/next_tests/test_freeze/stage1_run1/files/tier2_aime2026.jsonl"
+  },
+  "tier2_hmmt_feb2026.jsonl": {
+   "sha256": "40f1a4430432c608f832d1e9cc2c66780e1c3f34d071c05da59cb138dea6fddc",
+   "rows": 33,
+   "path": "validation/next_tests/test_freeze/stage1_run1/files/tier2_hmmt_feb2026.jsonl"
+  },
+  "tier3_math500.jsonl": {
+   "sha256": "f9608716204039b465c396c7a3a753b2f3bb1976933237c5064d5a4e55cc385b",
+   "rows": 500,
+   "path": "validation/next_tests/test_freeze/stage1_run1/files/tier3_math500.jsonl"
+  },
+  "tier1_variant_sources.jsonl": {
+   "sha256": "7aa9247a53fbcffaf594138afd0af28d4fe594dc80fcb61f4508f3ff20dbb9b6",
+   "rows": 50,
+   "path": "validation/next_tests/test_freeze/stage1_run1/files/tier1_variant_sources.jsonl"
+  },
+  "train_test_dedup.json": {
+   "sha256": "7407e01bed5a80aebc8620071b8b078f3e12bc40793ca7025690cb8e7fc2516a",
+   "rows": null,
+   "path": "validation/next_tests/test_freeze/stage1_run1/files/train_test_dedup.json"
+  }
+ }
+}

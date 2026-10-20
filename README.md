@@ -1,0 +1,211 @@
+# Distilling thinking-mode math reasoning into Qwen3.5-9B-Base
+
+NYU ECE-GY 9143 High Performance Machine Learning, Fall 2026, by Xinyi Zhang and Siyuan Wang.
+
+We distill reasoning traces from **DeepSeek-V4.1-Flash** (thinking mode) into **Qwen3.5-9B-Base** with LoRA. The
+comparison is against fine-tuning on MATH's human solutions, and we test whether deleting abandoned attempts and
+repeated work from the traces helps. Evaluation is on 90 post-release variants of MATH test problems, AIME 2026,
+HMMT February 2026, and MATH-500 as a reference. A systems part compares vLLM request scheduling strategies.
+
+The frozen design (models, prompt, admission rules, cleaning rules, conditions, test sets, evaluation protocol)
+is in **[DESIGN.md](DESIGN.md)**.
+
+## Status
+
+| Stage | Status |
+|---|---|
+| Student and task selection (base probes, development checks) | done |
+| Test sets frozen and deduplicated against training data | done |
+| 2,000 training questions selected | done |
+| Teacher traces generated (1,971 kept, USD 2.68) | done |
+| Light cleaning (groups 3 and 4) | done (0 changes) |
+| Heavy cleaning (group 4; 797 traces) | done |
+| Group 4 training file built | done; the exact token recount is pending |
+| Group 2 (human solutions) training file | to do |
+| LoRA training (groups 2–4), with hyperparameters tuned on dev data | to do |
+| Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
+
+## Quick check (offline, about 30 s, no GPU and no API)
+
+```bash
+python -I reproduce_offline.py
+```
+
+This re-runs every free, deterministic step from the committed inputs and compares the output with the committed
+files byte for byte:
+
+- test-freeze stage 2 (the 90 variants and the 6,356-problem training pool);
+- the 2,000-question sample;
+- dry runs of the teacher-generation ledger;
+- dry runs of the heavy-cleaning label checker.
+
+It needs Python ≥ 3.10 with `sympy`, and the last line should read `ALL OK`.
+
+## Repository layout
+
+Scripts find their inputs by relative path, and every data input is checked against a recorded SHA-256.
+
+```
+DESIGN.md                      frozen design
+reproduce_offline.py           one-shot offline reproduction check
+base_probe/                    few-shot probes of 9B-Base / 4B-Base on MATH dev 100 and MBPP val 90 (Colab GPU)
+validation/
+  eval_common.py               MATH loading, answer parsing and grading (math-verify); defines the train pool
+  validation_{worker,controller}.py   post-trained Qwen3.5-9B check + vLLM vs HF throughput (Colab GPU)
+  evidence/                    development sets: validation_100, teacher_candidates_50
+  next_tests/
+    perturb_materials/         MATH-Perturb hard/simple (only used for near-duplicate removal)
+    teacher_math50/            the 50 development problems used to check the teacher
+    length_tests/              select_length.py (rebuilds the MATH train pool; shared by the freeze scripts)
+    test_freeze/               test-set freeze, stage 1 (Colab CPU) and stage 2 (local); frozen outputs; checks
+    teacher_gen/               train2000 selection, teacher generation (paid API) + offline dry run
+    light_clean/               light cleaning rules L1–L3
+    heavy_clean_pilot/         sentence splitter / deletion engine (heavy_clean_v3.py) + reference labels
+    heavy_clean_claude/        heavy-cleaning label tool, labeling guide (frozen), dry run
+    train_sets/                group 4 builder, exact Qwen token recount
+```
+
+## Data kept outside the repository
+
+The generated traces and labels are too large for the repository. They are listed here with their SHA-256 so
+that any copy can be verified; scripts expect them under these relative paths:
+
+| Path (under `validation/next_tests/teacher_results/`) | Bytes | SHA-256 | What |
+|---|---|---|---|
+| `teacher_gen_b4/final_traces.jsonl` | 7,858,345 | `5b14ebf90959eeeefd9147dbee3fb88c062f7229abbaead57bda4ca7f634c51e` | 1,971 admitted traces = **group 3** |
+| `teacher_gen_b4/raw_responses.jsonl` | 7,794,897 | `c9a582846f346fdd4d08d798f5aa17b9a47780161fafbff56ada0bc8cae7e363` | full paid-response ledger (2,053) |
+| `teacher_gen_b4/grades.jsonl` | 551,097 | `76c7a5384319d8067a0a59314f10e89051f6605ef4457b97e1b2655bc0ce4138` | admission grading of every response |
+| `teacher_gen_b4/manifest.json`, `summary.json` | | see the files | hashes, costs, counts |
+| `light_clean_full/heavy_inputs.jsonl` | 6,612,630 | `b3a23d381c175b5365db7a6f41a8dbd144a939d8bd0b54a45597a5f9eaf87069` | light-cleaned traces (= raw) |
+| `light_clean_full/light_report.json` | 509 | `19ed609a7b56a8e96ed681becb133acea2304538b774a2b9a36550a8a91a2c3a` | L1–L3 counts (all 0) |
+| `heavy_claude_full/heavy_claude_full_work.zip` | 7,098,575 | `7b3b4f4eaed38c4a41f0b4228494f3437a51e5b17acc80a2b02972025feeb601` | heavy-cleaning `work/`: 80 batches, labels, results, diff pages |
+| `group4_heavy_v1/group4_heavy.jsonl` | 6,625,578 | `8ac76e67953c530714e15ef21411112fc45133db6875fd0e6a6b5f45ed7c286b` | 1,971 rows = **group 4** |
+| `group4_heavy_v1/build_report.json` | 1,869 | see the file | build checks and token estimates |
+
+Unzip `heavy_claude_full_work.zip` inside `heavy_claude_full/` so that `heavy_claude_full/work/` exists.
+
+## Environment
+
+| Where | Used for | Pins |
+|---|---|---|
+| Local, any OS, Python ≥ 3.10 | stage 2, selection, cleaning, group 4, dry runs | standard library + `sympy` |
+| Colab CPU (Linux) | test-freeze stage 1, math-verify checks, teacher API runs | `math-verify==0.9.0`, `datasets==4.8.5`, `huggingface_hub==1.33.0`, `transformers==5.17.0`, `tokenizers==0.23.2` |
+| Colab A100 | base probes / validation | `vllm==0.21.0`, `transformers==5.17.0`, `tokenizers==0.23.2`, `math-verify==0.9.0` |
+
+- math-verify uses `signal.alarm`, so anything that grades must run on Linux in the main thread.
+- Each Colab cell installs its own pins and checks the recorded SHA-256 of its inputs before running.
+- Run scripts with `python -I`, and write outputs to a new directory outside the repository; most scripts
+  refuse to overwrite.
+- API keys: the paid cells read `DEEPSEEK_API_KEY` from **Colab Secrets** only. No script writes the key, and
+  the teacher script checks every file it writes for it. Do not commit keys.
+
+## Full reproduction, step by step
+
+Steps marked **paid** call the DeepSeek API and cost money. Their outputs are archived, so re-running them is
+only needed to regenerate the data from scratch. Teacher outputs are sampled (T=0.6), so a re-run gives
+different traces. Use the archived ones to reproduce the training sets.
+
+### A. Development evidence (why this student and teacher)
+
+1. **Base probes** (Colab A100, about 1 h each). Upload the five files listed in `expected` of
+   `base_probe/colab_probe_setup_cell.py` to `/content`, run the setup cell, then poll with
+   `colab_probe_monitor_cell.py`. The `_4b` variants do the same for 4B-Base. Settings: Minerva-style 4-shot,
+   4,096 tokens, T=0.6, two seeds. Result: MATH dev 100 at 54.0% (9B) and 50.0% (4B); MBPP at 67.2% and 59.4%.
+2. **Post-trained 9B check and throughput** (Colab A100): `validation/validation_controller.py` runs
+   `validation_worker.py` in bounded stages under `/content/hpml_validation`. Result: about 90% on dev, and
+   72.84 tok/s with vLLM versus 16.74 tok/s with HF at batch 1.
+3. **Teacher on dev** (paid API): 48/50 in non-thinking mode on `teacher_math50/teacher_math_50.jsonl`, and
+   20/20 in thinking mode on 20 of those problems.
+
+### B. Test-set freeze and training pool
+
+4. **Stage 1** (Colab CPU, free, about 6 MB of downloads): upload the files listed in `FILES` of
+   `test_freeze/colab_freeze_cell.py` and run the cell. It rebuilds the MATH train pool, loads the pinned
+   test sets, picks the variant sources and deduplicates. The archived output is
+   `test_freeze/stage1_run1/test_freeze_stage1.zip` (`87055cbc…`).
+5. **Stage 2** (local, free). Extract the stage 1 zip into a new directory `STAGE1`, then:
+   ```bash
+   python -I validation/next_tests/test_freeze/freeze_stage2.py . STAGE1 OUT_STAGE2
+   ```
+   This runs every variant's own answer check (`variants.py`), deduplicates the variants against the pool, and
+   writes:
+   - `tier1_variants.jsonl` (90);
+   - the final `train_eligible_pool.jsonl` (6,356 problems, `d451355f…`);
+   - `stage2_dedup.json` and `freeze_manifest.json`.
+
+   The pool itself is not committed, because this step regenerates it exactly. Copy it to
+   `validation/next_tests/test_freeze/stage2_run1/` for the next step.
+6. **Answer checks of the variants**:
+   - `test_freeze/math_verify_run1/math_verify_check.py EVAL_COMMON TIER1_JSONL OUT_JSON` (Linux): 90/90
+     parse, 90/90 self-correct, 90/90 wrong values rejected;
+   - `test_freeze/blind_review_run1/symbolic_proofs.py`: SymPy proofs for two min/max families.
+
+   The blind solves by two model families agreed on 90/90. One ambiguous item is excluded from scoring, see
+   `test_freeze/scoring_exclusions.json`.
+
+### C. Teacher data
+
+7. **Select the 2,000 questions** (local, free):
+   ```bash
+   python -I validation/next_tests/teacher_gen/select_train2000.py . OUT_TRAIN2000
+   ```
+   It removes multiple-choice problems and draws a seeded simple random sample. The output must equal the
+   committed `teacher_gen/train2000.jsonl` (`99c14986…`).
+8. **Generate the traces** (paid, Colab CPU, about USD 0.6 per batch of 475). Upload `teacher_gen.py`,
+   `train2000.jsonl` and `base_probe/base_probe_worker.py`, then set `BATCH` (b0, then b1–b4) and `BUDGET` in
+   `teacher_gen/colab_teacher_gen_cell.py` and run it.
+   - The ledger is append-only and resumable, and a paid response is never repeated.
+   - Admission, the single resample and the drop rule follow DESIGN.md §3.
+   - Check the logic offline first:
+     `python -I validation/next_tests/teacher_gen/dry_run_teacher_gen.py validation/next_tests/teacher_gen NEW_DIR`.
+
+### D. Cleaning and training sets
+
+9. **Light cleaning** (local, free):
+    ```bash
+    python -I validation/next_tests/light_clean/light_clean.py FINAL_TRACES.jsonl OUT_LIGHT
+    ```
+    It writes `light_report.json` and `heavy_inputs.jsonl`, which must match the hashes in the data table.
+10. **Heavy cleaning** (local, free). Follow `heavy_clean_claude/LABELING_GUIDE.md`.
+    - Labeling: `claude_label.py prepare heavy_inputs.jsonl WORK_DIR 10 20261019` creates the batches, and the
+      labels are written to `WORK_DIR/labels/batch_NNN.json`.
+    - The labels are Claude's judgment under the frozen guide and cannot be regenerated exactly. The archived
+      labels are the source of truth.
+    - Deletion and the calibration gate are deterministic and can be re-run from the archived labels:
+      `python -I validation/next_tests/heavy_clean_claude/claude_label.py apply WORK_DIR NNN`.
+    - Dry run: `dry_run_claude_label.py EMPTY_DIR`.
+11. **Build group 4** (local, free). With the data above in place:
+    ```bash
+    python -I validation/next_tests/train_sets/build_group4.py validation/next_tests
+    ```
+    It checks every input hash, writes `teacher_results/group4_heavy_v1/`, and verifies that each cleaned
+    reasoning is a subsequence of the raw reasoning and that `content` is unchanged.
+12. **Exact token counts** (Colab or any machine with `transformers`; tokenizer only, pending):
+    ```bash
+    python count_group4_tokens.py final_traces.jsonl group4_heavy.jsonl out.json
+    ```
+
+### E. Training and evaluation (not written yet)
+
+The training script, the group 2 builder, and the evaluation and scheduling benchmark scripts will be added
+here. Their frozen constraints are in DESIGN.md §5–§8.
+
+## References
+
+1. X. Ren, B. Wu, L. Liu. *I Learn Better If You Speak My Language.* EMNLP 2024. https://arxiv.org/abs/2402.11192
+2. E. Miller. *Adding Error Bars to Evals.* arXiv 2024. https://arxiv.org/abs/2411.00640
+3. D. Hendrycks et al. *Measuring Mathematical Problem Solving With the MATH Dataset.* NeurIPS 2021. https://arxiv.org/abs/2103.03874
+4. Y. Kim, A. M. Rush. *Sequence-Level Knowledge Distillation.* EMNLP 2016. https://arxiv.org/abs/1606.07947
+5. N. Ho, L. Schmid, S.-Y. Yun. *Large Language Models Are Reasoning Teachers.* ACL 2023. https://arxiv.org/abs/2212.10071
+6. K. Huang et al. *MATH-Perturb.* ICML 2025. https://arxiv.org/abs/2502.06453
+7. E. J. Hu et al. *LoRA: Low-Rank Adaptation of Large Language Models.* 2021. https://arxiv.org/abs/2106.09685
+8. I. Mirzadeh et al. *GSM-Symbolic.* ICLR 2025. https://arxiv.org/abs/2410.05229
+9. M. Balunović et al. *MathArena: Evaluating LLMs on Uncontaminated Math Competitions.* NeurIPS 2025 D&B. https://arxiv.org/abs/2505.23281
+10. M. Wu et al. *Reasoning or Memorization? Unreliable Results of RL Due to Data Contamination.* AAAI 2026. https://arxiv.org/abs/2507.10532
+11. W. Kwon et al. *Efficient Memory Management for LLM Serving with PagedAttention.* SOSP 2023. https://arxiv.org/abs/2309.06180
+12. G.-I. Yu et al. *Orca: A Distributed Serving System for Transformer-Based Generative Models.* OSDI 2022.
+
+Data sources: MATH (`EleutherAI/hendrycks_math`), MATH-500 (`HuggingFaceH4/MATH-500`), MathArena AIME 2026 and
+HMMT February 2026, MATH-Perturb, and MBPP, each under its own license. Teacher outputs come from the DeepSeek API.
+The heavy-cleaning deletions were chosen by Claude (Anthropic): Claude only selected which teacher sentences to
+delete and wrote no training text. They are used for course research only.

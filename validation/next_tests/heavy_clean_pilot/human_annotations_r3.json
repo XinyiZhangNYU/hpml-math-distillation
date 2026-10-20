@@ -1,0 +1,694 @@
+{
+ "source": {
+  "human5": {
+   "file": "human_annotations.json",
+   "sha256": "9a9d9d6e5a0084f27cace1994e965473041cc62e8e877814f8ccc832dc094b21",
+   "origin": "validation/next_tests/teacher_results/teacher_think20_run1/RESULTS.md",
+   "origin_sha256": "3105e6782686d233b6dc67ef7d3e92d21fca5074107d64b0e4173dd51a711c2e"
+  },
+  "heldout5": {
+   "file": "heldout_labels_r3.json",
+   "sha256": "14cead35ffb1d91dbf09ebdfb09519058323ac14cb815de1a39a7b78e4cbc7ee",
+   "labeller": "claude",
+   "units": "heavy_clean_v3.split_units",
+   "convention": "human5: abandoned branches; repeated checks after the first; re-reading a settled interpretation; end-of-trace re-derivation. Keep first check and short final planning.",
+   "note": "Reference labels were made by Claude under the human5 convention."
+  }
+ },
+ "deleted_labels": [
+  "abandoned",
+  "repeat"
+ ],
+ "heldout5_deleted_char_share": {
+  "geometry/train/482": 0.434,
+  "geometry/train/529": 0.512,
+  "intermediate_algebra/train/843": 0.412,
+  "number_theory/train/178": 0.495,
+  "precalculus/train/53": 0.32
+ },
+ "traces": {
+  "algebra/train/273": [
+   {
+    "start": 0,
+    "end": 273,
+    "label": "main",
+    "anchor": "We need answer. Need solve.",
+    "what": "restates, sets b, solves 3b = b + 6"
+   },
+   {
+    "start": 273,
+    "end": 330,
+    "label": "check",
+    "anchor": "Check Addison=9",
+    "what": "checks the ages against all conditions"
+   },
+   {
+    "start": 330,
+    "end": 378,
+    "label": "plan/meta",
+    "anchor": "Answer Brenda 3.",
+    "what": "plans the final answer"
+   }
+  ],
+  "precalculus/train/642": [
+   {
+    "start": 0,
+    "end": 405,
+    "label": "main",
+    "anchor": "We need answer. Need reason.",
+    "what": "general M, compares entries: the first column forces x=2, y=0; the second column contradicts"
+   },
+   {
+    "start": 405,
+    "end": 798,
+    "label": "repeat",
+    "anchor": "Wait maybe I ordering",
+    "what": "redoes the product with p, q, r, s: same contradiction"
+   },
+   {
+    "start": 798,
+    "end": 1257,
+    "label": "repeat",
+    "anchor": "Wait left multiplication can't",
+    "what": "left multiplication acts on rows, so it cannot double one column"
+   },
+   {
+    "start": 1257,
+    "end": 1587,
+    "label": "repeat",
+    "anchor": "Let's carefully read:",
+    "what": "re-reads the equation; Mv=2v and Mv=v cannot both hold: no M, so the zero matrix"
+   },
+   {
+    "start": 1587,
+    "end": 1780,
+    "label": "abandoned",
+    "anchor": "But wait maybe they expect",
+    "what": "tries diag(2,1) and diag(1,2); both rejected"
+   },
+   {
+    "start": 1780,
+    "end": 2067,
+    "label": "repeat",
+    "anchor": "But question wording",
+    "what": "re-reads the wording once more; still impossible"
+   },
+   {
+    "start": 2067,
+    "end": 2231,
+    "label": "plan/meta",
+    "anchor": "Need provide concise steps",
+    "what": "plans the final answer"
+   }
+  ],
+  "counting_and_probability/train/157": [
+   {
+    "start": 0,
+    "end": 402,
+    "label": "main",
+    "anchor": "We need answer. Need solve.",
+    "what": "partitions of 5 into at most 3 parts; lists 5"
+   },
+   {
+    "start": 402,
+    "end": 522,
+    "label": "check",
+    "anchor": "That's 5? Check partitions",
+    "what": "checks against all 7 partitions of 5"
+   },
+   {
+    "start": 522,
+    "end": 632,
+    "label": "abandoned",
+    "anchor": "If boxes must each contain at least one?",
+    "what": "other reading (no empty box) gives 2; not used"
+   },
+   {
+    "start": 632,
+    "end": 970,
+    "label": "repeat",
+    "anchor": "But wording",
+    "what": "weighs the empty-box reading again: 5"
+   },
+   {
+    "start": 970,
+    "end": 1062,
+    "label": "repeat",
+    "anchor": "However if not distinguishable boxes",
+    "what": "restates the same reading a third time"
+   },
+   {
+    "start": 1062,
+    "end": 1213,
+    "label": "plan/meta",
+    "anchor": "Let's answer with mention",
+    "what": "plans the final answer"
+   }
+  ],
+  "intermediate_algebra/train/996": [
+   {
+    "start": 0,
+    "end": 223,
+    "label": "main",
+    "anchor": "We need solve. Need concise explanation.",
+    "what": "restates the problem"
+   },
+   {
+    "start": 223,
+    "end": 702,
+    "label": "main",
+    "anchor": "Homogeneous?",
+    "what": "scaling argument: the sum S2 can be fixed only if S2 = 0"
+   },
+   {
+    "start": 702,
+    "end": 1604,
+    "label": "main",
+    "anchor": "Let x=b-c, y=c-a, z=a-b. Then x+y+z=0. Also a,b,c in terms?",
+    "what": "differences x, y, z; the condition fixes the translation"
+   },
+   {
+    "start": 1604,
+    "end": 1955,
+    "label": "abandoned",
+    "anchor": "Let mean m=(a+b+c)/3.",
+    "what": "branch A: mean-zero decomposition, dropped"
+   },
+   {
+    "start": 1955,
+    "end": 3006,
+    "label": "main",
+    "anchor": "Alternatively choose differences",
+    "what": "sets a=T−y, b=T+x, c=T; K is nonzero; solves for T"
+   },
+   {
+    "start": 3006,
+    "end": 3772,
+    "label": "abandoned",
+    "anchor": "Then scale x,y? Let r=y/x.",
+    "what": "branch B: S2 via the ratio r, never finished"
+   },
+   {
+    "start": 3772,
+    "end": 4634,
+    "label": "repeat",
+    "anchor": "T L: T ~ x times L",
+    "what": "repeats the scaling argument"
+   },
+   {
+    "start": 4634,
+    "end": 5250,
+    "label": "check",
+    "anchor": "Take x=1, r=1?",
+    "what": "two numeric examples give S2 = 0: conjecture"
+   },
+   {
+    "start": 5250,
+    "end": 6722,
+    "label": "abandoned",
+    "anchor": "Maybe S2 always 0 under condition.",
+    "what": "branch C: the proof search restarts (known identity, linear algebra), no progress"
+   },
+   {
+    "start": 6722,
+    "end": 7308,
+    "label": "main",
+    "anchor": "Using T = c after base? General:",
+    "what": "same parametrisation with t; multiplies the condition by xyz"
+   },
+   {
+    "start": 7308,
+    "end": 7597,
+    "label": "abandoned",
+    "anchor": "Compute S2*? We want prove zero",
+    "what": "branch D: back to T = (y/x − x/y)/K, dropped"
+   },
+   {
+    "start": 7597,
+    "end": 9153,
+    "label": "main",
+    "anchor": "Using x, y, z with x+y+z=0. Let q=xy+yz+zx?",
+    "what": "numerator N2 = tA + z²(x³−y³), with A = q²"
+   },
+   {
+    "start": 9153,
+    "end": 9518,
+    "label": "repeat",
+    "anchor": "C: (t-y)/x + (t+x)/y + t/z =0.",
+    "what": "recomputes the sign of the condition"
+   },
+   {
+    "start": 9518,
+    "end": 9943,
+    "label": "main",
+    "anchor": "Now N2 = t A + z^2(x^3-y^3). A=q^2.",
+    "what": "finishes: N2 = q(tq − z²(x−y)) = 0"
+   },
+   {
+    "start": 9943,
+    "end": 10041,
+    "label": "plan/meta",
+    "anchor": "Need final answer \\boxed{0}.",
+    "what": "plans"
+   },
+   {
+    "start": 10041,
+    "end": 10306,
+    "label": "repeat",
+    "anchor": "Need ensure no other?",
+    "what": "existence check with the earlier example a=−1, b=1, c=0"
+   },
+   {
+    "start": 10306,
+    "end": 10459,
+    "label": "plan/meta",
+    "anchor": "Need craft concise explanation.",
+    "what": "plans"
+   },
+   {
+    "start": 10459,
+    "end": 11666,
+    "label": "repeat",
+    "anchor": "Let's formulate cleanly.",
+    "what": "drafts the whole proof again, with another sign recheck"
+   },
+   {
+    "start": 11666,
+    "end": 11982,
+    "label": "repeat",
+    "anchor": "Need be careful q maybe zero",
+    "what": "q is nonzero, already shown twice"
+   },
+   {
+    "start": 11982,
+    "end": 12256,
+    "label": "plan/meta",
+    "anchor": "We can state multiplying by nonzero",
+    "what": "plans the final answer"
+   }
+  ],
+  "number_theory/train/475": [
+   {
+    "start": 0,
+    "end": 472,
+    "label": "main",
+    "anchor": "We need solve. Need concise.",
+    "what": "n = 2k; a product of 5 consecutive odd numbers"
+   },
+   {
+    "start": 472,
+    "end": 1330,
+    "label": "abandoned",
+    "anchor": "We can compute for some values and prove.",
+    "what": "branch A: gcd of the first values, guesses 3465, refuted at n=8"
+   },
+   {
+    "start": 1330,
+    "end": 3094,
+    "label": "main",
+    "anchor": "Let's compute common over all k.",
+    "what": "minimum prime valuations: no 2, primes > 5 avoidable, 5 always once"
+   },
+   {
+    "start": 3094,
+    "end": 3696,
+    "label": "main",
+    "anchor": "p=3: Among 5 terms step2 mod3.",
+    "what": "p=3: minimum valuation 1 (n=10)"
+   },
+   {
+    "start": 3696,
+    "end": 4498,
+    "label": "repeat",
+    "anchor": "p=7? p>5, can avoid all?",
+    "what": "primes > 5 again (p=7)"
+   },
+   {
+    "start": 4498,
+    "end": 4896,
+    "label": "repeat",
+    "anchor": "p=3,5 seemed due length 5",
+    "what": "p=3 and p=5 again"
+   },
+   {
+    "start": 4896,
+    "end": 5349,
+    "label": "repeat",
+    "anchor": "Could there be p with always at least one but p>5?",
+    "what": "primes > 5 a third time"
+   },
+   {
+    "start": 5349,
+    "end": 5622,
+    "label": "repeat",
+    "anchor": "Thus G = 3*5=15 times possible higher powers?",
+    "what": "re-checks the minimum valuations from the same examples"
+   },
+   {
+    "start": 5622,
+    "end": 6061,
+    "label": "repeat",
+    "anchor": "But wait what about prime powers from p=2 no.",
+    "what": "proves that 15 divides the product (2nd time)"
+   },
+   {
+    "start": 6061,
+    "end": 6646,
+    "label": "main",
+    "anchor": "Largest integer: Since for n=2 product=10395.",
+    "what": "upper bound from the gcd of values of the product"
+   },
+   {
+    "start": 6646,
+    "end": 7054,
+    "label": "abandoned",
+    "anchor": "Actually n=4 (k=2):",
+    "what": "branch B: n = 4, 8, 6, 10 all keep the factor 11"
+   },
+   {
+    "start": 7054,
+    "end": 7504,
+    "label": "main",
+    "anchor": "n=12: 13,15,17,19,21 no 11?",
+    "what": "n=12 removes 11; gcd(P2, P10, P12) = 15"
+   },
+   {
+    "start": 7504,
+    "end": 8113,
+    "label": "repeat",
+    "anchor": "Need be concise. But final answer boxed 15.",
+    "what": "recomputes gcd(P2, P10, P12) = 15"
+   },
+   {
+    "start": 8113,
+    "end": 8882,
+    "label": "repeat",
+    "anchor": "Need maybe include proof for 15 divides all.",
+    "what": "proves that 15 divides the product (3rd time)"
+   },
+   {
+    "start": 8882,
+    "end": 9084,
+    "label": "plan/meta",
+    "anchor": "Need prove no larger divisor beyond 15.",
+    "what": "plans the argument"
+   },
+   {
+    "start": 9084,
+    "end": 9205,
+    "label": "plan/meta",
+    "anchor": "Let's craft final answer with steps.",
+    "what": "meta: \"Desired oververbosity 5, concise.\" (not in the prompt)"
+   },
+   {
+    "start": 9205,
+    "end": 9389,
+    "label": "check",
+    "anchor": "Potential subtlety:",
+    "what": "checks the reading of \"largest divisor for all n\""
+   },
+   {
+    "start": 9389,
+    "end": 9418,
+    "label": "plan/meta",
+    "anchor": "Let's final with clear proof.",
+    "what": "plans the final answer"
+   }
+  ],
+  "geometry/train/482": [
+   {
+    "start": 0,
+    "end": 754,
+    "label": "main"
+   },
+   {
+    "start": 754,
+    "end": 1140,
+    "label": "repeat"
+   },
+   {
+    "start": 1140,
+    "end": 1713,
+    "label": "main"
+   },
+   {
+    "start": 1713,
+    "end": 1786,
+    "label": "repeat"
+   },
+   {
+    "start": 1786,
+    "end": 2362,
+    "label": "main"
+   },
+   {
+    "start": 2362,
+    "end": 2467,
+    "label": "repeat"
+   },
+   {
+    "start": 2467,
+    "end": 2858,
+    "label": "main"
+   },
+   {
+    "start": 2858,
+    "end": 3264,
+    "label": "repeat"
+   },
+   {
+    "start": 3264,
+    "end": 3289,
+    "label": "main"
+   },
+   {
+    "start": 3289,
+    "end": 3496,
+    "label": "repeat"
+   },
+   {
+    "start": 3496,
+    "end": 3556,
+    "label": "main"
+   },
+   {
+    "start": 3556,
+    "end": 3704,
+    "label": "repeat"
+   },
+   {
+    "start": 3704,
+    "end": 3864,
+    "label": "main"
+   },
+   {
+    "start": 3864,
+    "end": 4488,
+    "label": "repeat"
+   },
+   {
+    "start": 4488,
+    "end": 4494,
+    "label": "main"
+   }
+  ],
+  "geometry/train/529": [
+   {
+    "start": 0,
+    "end": 1785,
+    "label": "main"
+   },
+   {
+    "start": 1785,
+    "end": 2772,
+    "label": "abandoned"
+   },
+   {
+    "start": 2772,
+    "end": 4036,
+    "label": "main"
+   },
+   {
+    "start": 4036,
+    "end": 4277,
+    "label": "repeat"
+   },
+   {
+    "start": 4277,
+    "end": 4732,
+    "label": "main"
+   },
+   {
+    "start": 4732,
+    "end": 6216,
+    "label": "repeat"
+   },
+   {
+    "start": 6216,
+    "end": 6831,
+    "label": "main"
+   },
+   {
+    "start": 6831,
+    "end": 8445,
+    "label": "repeat"
+   },
+   {
+    "start": 8445,
+    "end": 8455,
+    "label": "main"
+   }
+  ],
+  "intermediate_algebra/train/843": [
+   {
+    "start": 0,
+    "end": 2145,
+    "label": "main"
+   },
+   {
+    "start": 2145,
+    "end": 2320,
+    "label": "repeat"
+   },
+   {
+    "start": 2320,
+    "end": 2633,
+    "label": "main"
+   },
+   {
+    "start": 2633,
+    "end": 3088,
+    "label": "repeat"
+   },
+   {
+    "start": 3088,
+    "end": 3145,
+    "label": "main"
+   },
+   {
+    "start": 3145,
+    "end": 3372,
+    "label": "repeat"
+   },
+   {
+    "start": 3372,
+    "end": 3478,
+    "label": "main"
+   },
+   {
+    "start": 3478,
+    "end": 4569,
+    "label": "repeat"
+   },
+   {
+    "start": 4569,
+    "end": 4732,
+    "label": "main"
+   }
+  ],
+  "number_theory/train/178": [
+   {
+    "start": 0,
+    "end": 816,
+    "label": "main"
+   },
+   {
+    "start": 816,
+    "end": 1046,
+    "label": "repeat"
+   },
+   {
+    "start": 1046,
+    "end": 1581,
+    "label": "main"
+   },
+   {
+    "start": 1581,
+    "end": 1703,
+    "label": "repeat"
+   },
+   {
+    "start": 1703,
+    "end": 2107,
+    "label": "main"
+   },
+   {
+    "start": 2107,
+    "end": 2204,
+    "label": "abandoned"
+   },
+   {
+    "start": 2204,
+    "end": 2427,
+    "label": "main"
+   },
+   {
+    "start": 2427,
+    "end": 4107,
+    "label": "repeat"
+   },
+   {
+    "start": 4107,
+    "end": 4365,
+    "label": "main"
+   },
+   {
+    "start": 4365,
+    "end": 4474,
+    "label": "repeat"
+   },
+   {
+    "start": 4474,
+    "end": 4524,
+    "label": "main"
+   }
+  ],
+  "precalculus/train/53": [
+   {
+    "start": 0,
+    "end": 4178,
+    "label": "main"
+   },
+   {
+    "start": 4178,
+    "end": 4965,
+    "label": "abandoned"
+   },
+   {
+    "start": 4965,
+    "end": 10622,
+    "label": "main"
+   },
+   {
+    "start": 10622,
+    "end": 12678,
+    "label": "repeat"
+   },
+   {
+    "start": 12678,
+    "end": 12829,
+    "label": "main"
+   },
+   {
+    "start": 12829,
+    "end": 14162,
+    "label": "repeat"
+   },
+   {
+    "start": 14162,
+    "end": 16727,
+    "label": "main"
+   },
+   {
+    "start": 16727,
+    "end": 18536,
+    "label": "repeat"
+   },
+   {
+    "start": 18536,
+    "end": 18707,
+    "label": "main"
+   }
+  ]
+ }
+}

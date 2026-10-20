@@ -1,0 +1,11 @@
+{
+  "note": "Frozen test files stay unchanged. Ids listed here are excluded from scoring and reported separately; they are not replaced.",
+  "exclusions": [
+    {
+      "id": "variant/algebra/test/158/numbers",
+      "tier": "tier1_variants",
+      "reference_answer": "\\frac{225}{4}",
+      "reason": "Ambiguous: the statement does not say whether side lengths must be integers. Real sides give 225/4; integer sides give 56. The source problem (perimeter 12) has an integer optimum, so the ambiguity was introduced by the numbers variant."
+    }
+  ]
+}

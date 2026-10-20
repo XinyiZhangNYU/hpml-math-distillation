@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+.DS_Store
+
+# secrets and labeling answer keys
+.env
+*_key.json
+
+# generated data is kept outside the repository (see README "Data kept outside the repository")
+validation/next_tests/teacher_results/
+validation/next_tests/test_freeze/stage2_run1/train_eligible_pool.jsonl
+work/

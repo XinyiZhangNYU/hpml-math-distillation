@@ -1,0 +1,2 @@
+# Scripts verify their inputs by SHA-256: store and check out every file byte for byte.
+* -text

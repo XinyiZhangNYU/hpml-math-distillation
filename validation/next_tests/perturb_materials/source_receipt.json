@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/Kaffaljidhmah2/MATH-Perturb",
+  "commit": "df4840f680fce405c9449008564574961c7f4df1",
+  "files": {
+    "math_perturb_hard.jsonl": {
+      "url": "https://raw.githubusercontent.com/Kaffaljidhmah2/MATH-Perturb/df4840f680fce405c9449008564574961c7f4df1/math_perturb/math_perturb_hard.jsonl",
+      "sha256": "418ca51e02f3b639a919dda72b5201ce35ac6c6d7d31c3231735beb4ea012dd7",
+      "n": 279
+    },
+    "math_perturb_simple.jsonl": {
+      "url": "https://raw.githubusercontent.com/Kaffaljidhmah2/MATH-Perturb/df4840f680fce405c9449008564574961c7f4df1/math_perturb/math_perturb_simple.jsonl",
+      "sha256": "2130821d4235dc1f5d962bee7f84a096651bf98fcb17b6dcfd3d0a48875ba5bb",
+      "n": 279
+    }
+  },
+  "training_permitted": false,
+  "evaluation_run": false
+}
