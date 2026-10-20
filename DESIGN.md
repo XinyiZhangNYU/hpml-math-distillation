@@ -120,7 +120,10 @@ Automatic checks (all passed):
 Groups 2–4 share:
 
 - the same 1,971 questions, adapter configuration, training budget and hyperparameter search;
-- 32,768-token sequences.
+- 32,768-token sequences;
+- the sequence layout of §3. Group 2 puts the human solution after an empty think block
+  (`<think>\n\n</think>\n\n{solution}<|im_end|>\n`). The loss covers everything after the prompt, from `<think>`
+  through the final `<|im_end|>`.
 
 Because group 4 is shorter, the 3-vs-4 difference mixes "cleaner" with "shorter". The total number of training
 tokens is reported for every group. Exact counts with the pinned tokenizer, prompt tokens included
@@ -174,8 +177,6 @@ The group 3 recount equals the `qwen_total_tokens` recorded at admission for all
   the number of training seeds.
 - The number of samples per problem at evaluation, the cluster unit for the confidence intervals, and which
   budget is the headline (32k with prefix rescoring is the plan).
-- The group 2 sequence layout: the human solution after an empty `<think>\n\n</think>\n\n` block (same
-  template as groups 3 and 4; 611,428 tokens), or with no think block (603,544 tokens).
 - The prompt for condition 1 (no training): the training chat template zero-shot, or the Minerva-style
   4-shot prompt used in the base probes.
 - The training script, the final evaluation script, and the vLLM scheduling benchmark.

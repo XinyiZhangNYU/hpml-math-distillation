@@ -70,7 +70,7 @@ validation/
 
 The generated traces and labels are too large for the repository. They are shared read-only on Google Drive:
 [hpml-math-distillation-data](https://drive.google.com/drive/folders/1t2iVSALy0f7qxFcHDKLTAJD8VnmTwPON). The
-folder has the four subfolders below; download them into `validation/next_tests/teacher_results/`. Each file is
+folder has the six subfolders below; download them into `validation/next_tests/teacher_results/`. Each file is
 listed with its SHA-256 so that any copy can be verified; scripts expect them under these relative paths:
 
 | Path (under `validation/next_tests/teacher_results/`) | Bytes | SHA-256 | What |
@@ -84,15 +84,12 @@ listed with its SHA-256 so that any copy can be verified; scripts expect them un
 | `heavy_claude_full/heavy_claude_full_work.zip` | 7,098,575 | `7b3b4f4eaed38c4a41f0b4228494f3437a51e5b17acc80a2b02972025feeb601` | heavy-cleaning `work/`: 80 batches, labels, results, diff pages |
 | `group4_heavy_v1/group4_heavy.jsonl` | 6,625,578 | `8ac76e67953c530714e15ef21411112fc45133db6875fd0e6a6b5f45ed7c286b` | 1,971 rows = **group 4** |
 | `group4_heavy_v1/build_report.json` | 1,869 | see the file | build checks and token estimates |
-
-Unzip `heavy_claude_full_work.zip` inside `heavy_claude_full/` so that `heavy_claude_full/work/` exists.
-
-Two more files are rebuilt locally rather than downloaded (steps 12 and 13 below):
-
-| Path (under `validation/next_tests/teacher_results/`) | Bytes | SHA-256 | What |
-|---|---|---|---|
 | `group2_human_v1/group2_human.jsonl` | 1,818,505 | `176dc0b04b9d599870e37172ff06872c0faeacad2ed4f7f1a3b33d21dabe8f93` | 1,971 rows = **group 2** |
+| `group2_human_v1/build_report.json` | 1,298 | `bacc8ea9e07eeb46b55dc5324255c2e1faf3f8639d48f0ccd1206e154d414def` | group 2 build checks |
 | `token_counts_v1/token_counts.json` | 68,558 | `089f2d60fba026ea494ec1a4e16ab07cf48dc7475f767a51e6c1bcbbc7e52ad0` | exact token counts of groups 2–4 |
+
+Unzip `heavy_claude_full_work.zip` inside `heavy_claude_full/` so that `heavy_claude_full/work/` exists. The
+`group2_human_v1/` and `token_counts_v1/` files can also be rebuilt exactly (steps 12 and 13 below).
 
 ## Environment
 
@@ -198,7 +195,7 @@ different traces. Use the archived ones to reproduce the training sets.
     `fetch` downloads the 7 MATH train parquet files at the pinned revision; `build` checks their hashes, takes
     the reference solution of each kept question in `final_traces.jsonl` order, checks that the problem text,
     level and gold answer match `train2000.jsonl`, and writes `teacher_results/group2_human_v1/`. The output is
-    deterministic and must match the hash in the table above.
+    deterministic and must match the hashes in the data table.
 13. **Exact token counts** (any machine with `transformers==5.17.0`; tokenizer files only, about 10 s):
     ```bash
     python count_group4_tokens.py final_traces.jsonl group4_heavy.jsonl token_counts.json group2_human.jsonl
