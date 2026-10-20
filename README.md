@@ -67,8 +67,10 @@ validation/
 
 ## Data kept outside the repository
 
-The generated traces and labels are too large for the repository. They are listed here with their SHA-256 so
-that any copy can be verified; scripts expect them under these relative paths:
+The generated traces and labels are too large for the repository. They are shared read-only on Google Drive:
+[hpml-math-distillation-data](https://drive.google.com/drive/folders/1t2iVSALy0f7qxFcHDKLTAJD8VnmTwPON). The
+folder has the four subfolders below; download them into `validation/next_tests/teacher_results/`. Each file is
+listed with its SHA-256 so that any copy can be verified; scripts expect them under these relative paths:
 
 | Path (under `validation/next_tests/teacher_results/`) | Bytes | SHA-256 | What |
 |---|---|---|---|
