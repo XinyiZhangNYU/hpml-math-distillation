@@ -20,8 +20,9 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Teacher traces generated (1,971 kept, USD 2.68) | done |
 | Light cleaning (groups 3 and 4) | done (0 changes) |
 | Heavy cleaning (group 4; 797 traces) | done |
-| Group 4 training file built | done; the exact token recount is pending |
-| Group 2 (human solutions) training file | to do |
+| Group 4 training file built | done |
+| Group 2 (human solutions) training file | done |
+| Exact token counts of groups 2–4 | done |
 | LoRA training (groups 2–4), with hyperparameters tuned on dev data | to do |
 | Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
 
@@ -62,7 +63,7 @@ validation/
     light_clean/               light cleaning rules L1–L3
     heavy_clean_pilot/         sentence splitter / deletion engine (heavy_clean_v3.py) + reference labels
     heavy_clean_claude/        heavy-cleaning label tool, labeling guide (frozen), dry run
-    train_sets/                group 4 builder, exact Qwen token recount
+    train_sets/                group 2 and group 4 builders, exact Qwen token counts
 ```
 
 ## Data kept outside the repository
@@ -85,6 +86,13 @@ listed with its SHA-256 so that any copy can be verified; scripts expect them un
 | `group4_heavy_v1/build_report.json` | 1,869 | see the file | build checks and token estimates |
 
 Unzip `heavy_claude_full_work.zip` inside `heavy_claude_full/` so that `heavy_claude_full/work/` exists.
+
+Two more files are rebuilt locally rather than downloaded (steps 12 and 13 below):
+
+| Path (under `validation/next_tests/teacher_results/`) | Bytes | SHA-256 | What |
+|---|---|---|---|
+| `group2_human_v1/group2_human.jsonl` | 1,818,505 | `176dc0b04b9d599870e37172ff06872c0faeacad2ed4f7f1a3b33d21dabe8f93` | 1,971 rows = **group 2** |
+| `token_counts_v1/token_counts.json` | 68,558 | `089f2d60fba026ea494ec1a4e16ab07cf48dc7475f767a51e6c1bcbbc7e52ad0` | exact token counts of groups 2–4 |
 
 ## Environment
 
@@ -182,15 +190,25 @@ different traces. Use the archived ones to reproduce the training sets.
     ```
     It checks every input hash, writes `teacher_results/group4_heavy_v1/`, and verifies that each cleaned
     reasoning is a subsequence of the raw reasoning and that `content` is unchanged.
-12. **Exact token counts** (Colab or any machine with `transformers`; tokenizer only, pending):
+12. **Build group 2** (local, free; about 3 MB of downloads, needs `huggingface_hub` and `pyarrow`):
     ```bash
-    python count_group4_tokens.py final_traces.jsonl group4_heavy.jsonl out.json
+    python -I validation/next_tests/train_sets/build_group2.py fetch MATH_DIR
+    python -I validation/next_tests/train_sets/build_group2.py build validation/next_tests MATH_DIR
     ```
+    `fetch` downloads the 7 MATH train parquet files at the pinned revision; `build` checks their hashes, takes
+    the reference solution of each kept question in `final_traces.jsonl` order, checks that the problem text,
+    level and gold answer match `train2000.jsonl`, and writes `teacher_results/group2_human_v1/`. The output is
+    deterministic and must match the hash in the table above.
+13. **Exact token counts** (any machine with `transformers==5.17.0`; tokenizer files only, about 10 s):
+    ```bash
+    python count_group4_tokens.py final_traces.jsonl group4_heavy.jsonl token_counts.json group2_human.jsonl
+    ```
+    It asserts that the group 3 recount equals the recorded `qwen_total_tokens`. Results are in DESIGN.md §5.
 
 ### E. Training and evaluation (not written yet)
 
-The training script, the group 2 builder, and the evaluation and scheduling benchmark scripts will be added
-here. Their frozen constraints are in DESIGN.md §5–§8.
+The training script and the evaluation and scheduling benchmark scripts will be added here. Their frozen
+constraints are in DESIGN.md §5–§8.
 
 ## References
 

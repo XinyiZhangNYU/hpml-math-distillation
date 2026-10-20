@@ -113,7 +113,7 @@ Automatic checks (all passed):
 | # | Condition | Training targets |
 |---|---|---|
 | 1 | 9B-Base, no training | — |
-| 2 | LoRA on human solutions | MATH reference solutions of the 1,971 kept questions |
+| 2 | LoRA on human solutions | MATH reference solutions of the 1,971 kept questions (`group2_human.jsonl`) |
 | 3 | LoRA on light-cleaned traces (main) | `final_traces.jsonl` (raw = light) |
 | 4 | LoRA on heavy-cleaned traces | `group4_heavy.jsonl` |
 
@@ -123,7 +123,17 @@ Groups 2–4 share:
 - 32,768-token sequences.
 
 Because group 4 is shorter, the 3-vs-4 difference mixes "cleaner" with "shorter". The total number of training
-tokens is reported for every group.
+tokens is reported for every group. Exact counts with the pinned tokenizer, prompt tokens included
+(`teacher_results/token_counts_v1/token_counts.json`):
+
+| Group | Total tokens | Mean | Median | Max | Over 8k / 16k / 32k |
+|---|---|---|---|---|---|
+| 2 (human solutions, empty think block) | 611,428 | 310.2 | 242 | 2,640 | 0 / 0 / 0 |
+| 3 (raw = light) | 2,420,158 | 1,227.9 | 534 | 23,538 | 44 / 8 / 0 |
+| 4 (heavy) | 1,750,516 | 888.1 | 512 | 20,162 | 12 / 2 / 0 |
+
+The group 3 recount equals the `qwen_total_tokens` recorded at admission for all 1,971 traces. Group 4 has
+72.3% of group 3's tokens. No sequence needs truncation.
 
 ## 6. Test sets (deduplicated against training data)
 
@@ -164,8 +174,8 @@ tokens is reported for every group.
   the number of training seeds.
 - The number of samples per problem at evaluation, the cluster unit for the confidence intervals, and which
   budget is the headline (32k with prefix rescoring is the plan).
-- The exact Qwen token count for group 4. The current figure, 1.80M tokens versus 2.42M for group 3, is an
-  estimate, and `count_group4_tokens.py` has not been run yet.
-- The group 2 training file: human solutions are joined from the pinned MATH revision by id, and no builder
-  exists yet.
+- The group 2 sequence layout: the human solution after an empty `<think>\n\n</think>\n\n` block (same
+  template as groups 3 and 4; 611,428 tokens), or with no think block (603,544 tokens).
+- The prompt for condition 1 (no training): the training chat template zero-shot, or the Minerva-style
+  4-shot prompt used in the base probes.
 - The training script, the final evaluation script, and the vLLM scheduling benchmark.
