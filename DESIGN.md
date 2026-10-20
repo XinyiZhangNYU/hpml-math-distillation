@@ -162,6 +162,10 @@ The group 3 recount equals the `qwen_total_tokens` recorded at admission for all
 
 ## 7. Evaluation protocol (frozen parts)
 
+- Prompts: conditions 2–4 get the training chat template of §3, zero-shot. Condition 1 (no training) gets the
+  Minerva-style 4-shot prompt of the base probes (`base_probe/base_probe_worker.py`: raw text, no chat
+  template, stop at `\nProblem:`), the standard way to evaluate a base model. The 1-vs-trained comparison
+  therefore includes the prompt change; the comparisons among groups 2–4 do not.
 - Grader: math-verify 0.9.0 through `validation/eval_common.py` (`37aa9b22…`), applied to the last `\boxed{}`.
 - Generation budget: up to 32k tokens. The same outputs are also scored after truncation at 4k, 8k and 16k
   tokens.
@@ -177,6 +181,4 @@ The group 3 recount equals the `qwen_total_tokens` recorded at admission for all
   the number of training seeds.
 - The number of samples per problem at evaluation, the cluster unit for the confidence intervals, and which
   budget is the headline (32k with prefix rescoring is the plan).
-- The prompt for condition 1 (no training): the training chat template zero-shot, or the Minerva-style
-  4-shot prompt used in the base probes.
 - The training script, the final evaluation script, and the vLLM scheduling benchmark.
