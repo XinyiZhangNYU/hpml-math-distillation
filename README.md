@@ -23,7 +23,7 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Group 4 training file built | done |
 | Group 2 (human solutions) training file | done |
 | Exact token counts of groups 2–4 | done |
-| LoRA training (groups 2–4), with hyperparameters tuned on dev data | to do |
+| LoRA training (groups 2–4), with hyperparameters tuned on dev data | scripts written and checked offline; GPU runs to do |
 | Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
@@ -50,6 +50,7 @@ Scripts find their inputs by relative path, and every data input is checked agai
 DESIGN.md                      frozen design
 reproduce_offline.py           one-shot offline reproduction check
 base_probe/                    few-shot probes of 9B-Base / 4B-Base on MATH dev 100 and MBPP val 90 (Colab GPU)
+training/                      LoRA training, adapter merge and dev evaluation (Colab GPU); not frozen yet
 validation/
   eval_common.py               MATH loading, answer parsing and grading (math-verify); defines the train pool
   validation_{worker,controller}.py   post-trained Qwen3.5-9B check + vLLM vs HF throughput (Colab GPU)
@@ -202,10 +203,22 @@ different traces. Use the archived ones to reproduce the training sets.
     ```
     It asserts that the group 3 recount equals the recorded `qwen_total_tokens`. Results are in DESIGN.md §5.
 
-### E. Training and evaluation (not written yet)
+### E. Training and evaluation (in progress)
 
-The training script and the evaluation and scheduling benchmark scripts will be added here. Their frozen
-constraints are in DESIGN.md §5–§8.
+The scripts in `training/` run on a Colab A100 with the pinned stacks of the capacity test (training: unsloth
+2026.10.5, transformers 5.17.0, peft 0.21.1, torch 2.11.0) and of the base probes (evaluation: vLLM 0.21.0,
+math-verify 0.9.0). Their frozen constraints are in DESIGN.md §5–§8; the hyperparameters are chosen on MATH dev 100
+and are not frozen yet.
+
+| Script | What it does |
+|---|---|
+| `sft_data.py` | Builds the §3 sequences and loss masks, checks the group totals against `token_counts.json`, and plans the steps: a seeded question order shared by all groups, 16 questions per step, length-sorted microbatches with right padding, no packing. Tokenizer only. |
+| `train_lora.py` | BF16 LoRA r 16 on one group: AdamW, warmup then constant learning rate, token-mean loss per step, an adapter saved after every epoch. |
+| `merge_lora.py` | Merges an adapter into the pinned base weights shard by shard, so vLLM loads the result like the base model. |
+| `dev_eval.py` | vLLM generation on MATH dev 100 and grading with `validation/eval_common.py`, with re-grading after truncation at 4k / 8k / 16k tokens. It first checks that vLLM on the merged weights reproduces the adapter's loss on four fixed training sequences. |
+| `colab_smoke_cell.py` | One Colab cell: a short run of groups 3 and 2, a merge, and a dev evaluation, to measure time and memory. It fetches every input from this repository and the Drive folder and checks the SHA-256 of each. |
+
+The final evaluation script and the vLLM scheduling benchmark will be added here.
 
 ## References
 
