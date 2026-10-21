@@ -32,6 +32,9 @@ import base_probe_worker  # noqa: E402  (Minerva shots and stop string, copied n
 
 SEED = 91432026
 SAMPLING = dict(temperature=0.6, top_p=0.95, top_k=20)
+# Prompt log-probs (the --check-loss pass) take chunk tokens x 248,320 vocab x fp32 outside vLLM's memory budget;
+# 2,048-token chunks and 0.80 utilization leave room for that on a 40 GB A100.
+ENGINE = dict(max_num_batched_tokens=2048, gpu_memory_utilization=.80)
 FROZEN = {'eval_common.py': '37aa9b22', 'base_probe_worker.py': 'e8e636e9', 'math_dev_100.jsonl': '0453023e'}
 
 
@@ -81,7 +84,7 @@ def run(a):
     summary = {'utc': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'model': a.model, 'tag': a.tag,
                'prompt': a.prompt, 'samples': a.samples, 'max_tokens': a.max_tokens, 'budgets': budgets,
                'sampling': SAMPLING, 'seed_rule': '91432026 + item index + 100000*sample', 'stop': {k: v for k, v in stop.items()},
-               'max_prompt_tokens': max_prompt, 'max_num_seqs': a.max_num_seqs, 'frozen_sha256': shas,
+               'max_prompt_tokens': max_prompt, 'max_num_seqs': a.max_num_seqs, 'engine': ENGINE, 'frozen_sha256': shas,
                'script_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                'gpu': torch.cuda.get_device_name(0),
                'versions': {n: metadata.version(n) for n in ['torch', 'transformers', 'vllm', 'math-verify']},
@@ -92,7 +95,7 @@ def run(a):
     save(summary_p, summary)
     t = time.perf_counter()
     llm = LLM(**model_kw, dtype='bfloat16', max_model_len=a.max_tokens + 2048, max_num_seqs=a.max_num_seqs,
-              max_num_batched_tokens=8192, gpu_memory_utilization=.85, enforce_eager=False,
+              **ENGINE, enforce_eager=False,
               enable_prefix_caching=False, language_model_only=True, seed=SEED, disable_log_stats=False)
     summary['load_seconds'] = time.perf_counter() - t
     if a.check_loss:
