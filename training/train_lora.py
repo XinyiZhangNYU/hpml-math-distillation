@@ -1,18 +1,20 @@
 """BF16 LoRA training of Qwen3.5-9B-Base on one training group (Colab A100, the stack of the capacity test).
 
 Adapter: r 16, alpha 16, dropout 0 on the attention, MLP and linear-attention projections, Unsloth gradient
-checkpointing, LoRA init seed = --seed (same as the capacity test). Optimizer: AdamW, weight decay 0, gradient clip 1.0,
-linear warmup over --warmup steps, then a constant learning rate, so the adapter saved after epoch k is what a k-epoch
-run would give and one run covers the epoch grid. Loss: token-level mean over all supervised tokens of a step
-(sft_data.py builds the sequences, masks and microbatches).
+checkpointing, LoRA init seed = --seed (same as the capacity test); --order-seed sets the question order (default
+sft_data.ORDER_SEED, the order of the tuning runs), while the four check questions always come from the default order.
+Optimizer: AdamW, weight decay 0, gradient clip 1.0, linear warmup over --warmup steps, then a constant learning
+rate, so the adapter saved after epoch k is what a k-epoch run would give and one run covers the epoch grid.
+Loss: token-level mean over all supervised tokens of a step (sft_data.py builds the sequences, masks and
+microbatches).
 
 --max-steps N stops early (smoke test). --single puts one example in each microbatch (no padding at all).
 --padding-check first compares, on the first padded microbatch, the summed loss of the padded batch with the summed
 loss of its examples run one at a time. Each saved adapter directory also gets check_loss.json (the target NLL of
 four fixed questions), which dev_eval.py reproduces from the merged weights.
 
-usage: python -u train_lora.py --data DIR --group 3 --lr 1e-4 --epochs 3 --out DIR [--max-steps N] [--padding-check]
-       [--single]
+usage: python -u train_lora.py --data DIR --group 3 --lr 1e-4 --epochs 3 --out DIR [--seed N] [--order-seed N]
+       [--max-steps N] [--padding-check] [--single]
 """
 import argparse
 import datetime
@@ -117,7 +119,7 @@ def run(a):
     examples = sft_data.encode(tok, sft_data.load_group(a.data, a.group), a.group)
     lengths = [len(x['input_ids']) for x in examples]
     pad_id = tok.convert_tokens_to_ids('<|endoftext|>')
-    plans = {e: sft_data.step_plan(lengths, e) for e in range(1, a.epochs + 1)}
+    plans = {e: sft_data.step_plan(lengths, e, a.order_seed) for e in range(1, a.epochs + 1)}
     if a.single:  # one example per microbatch (no padding); same steps and loss
         plans = {e: [[[i] for m in s for i in m] for s in p] for e, p in plans.items()}
     total_steps = sum(len(p) for p in plans.values())
@@ -137,7 +139,7 @@ def run(a):
                         'optimizer': 'AdamW betas (0.9, 0.999) eps 1e-8', 'weight_decay': 0.0, 'grad_clip': 1.0,
                         'step_examples': sft_data.STEP_EXAMPLES, 'token_budget': sft_data.TOKEN_BUDGET,
                         'microbatch_overhead': sft_data.MICROBATCH_OVERHEAD,
-                        'order_seed': sft_data.ORDER_SEED, 'lora_seed': a.seed, 'rank': 16, 'alpha': 16, 'dropout': 0.0,
+                        'order_seed': a.order_seed, 'lora_seed': a.seed, 'rank': 16, 'alpha': 16, 'dropout': 0.0,
                         'targets': TARGETS, 'precision': 'bfloat16', 'gradient_checkpointing': 'unsloth',
                         'packing': 'none; ' + ('one example per microbatch' if a.single else 'right padding inside a microbatch, masked')},
               'max_steps': a.max_steps, 'steps_per_epoch': {e: len(p) for e, p in plans.items()},
@@ -238,6 +240,7 @@ if __name__ == '__main__':
     p.add_argument('--epochs', type=int, default=3)
     p.add_argument('--warmup', type=int, default=10)
     p.add_argument('--seed', type=int, default=91432026)
+    p.add_argument('--order-seed', type=int, default=sft_data.ORDER_SEED)
     p.add_argument('--max-steps', type=int, default=0)
     p.add_argument('--padding-check', action='store_true')
     p.add_argument('--single', action='store_true')

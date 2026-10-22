@@ -1,7 +1,7 @@
 # Frozen design
 
-Everything in sections 1–7 is frozen: the data, prompts, rules and test sets are fixed
-and pinned by SHA-256, and they will not change once training starts. Section 8 lists what is still open.
+Everything in sections 1–9 is frozen: the data, prompts, rules, test sets, training setup and evaluation
+protocol are fixed and pinned by SHA-256, and they will not change from here on. Section 10 lists what is still open.
 
 Research question: can thinking-mode reasoning traces from DeepSeek-V4.1-Flash teach Qwen3.5-9B-Base to solve
 math problems it fails, beyond fine-tuning on human solutions? Does deleting abandoned attempts and repeated work
@@ -175,10 +175,73 @@ The group 3 recount equals the `qwen_total_tokens` recorded at admission for all
 - Systems experiment: on vLLM, fixed-size request groups versus a continuously refilled queue. We measure
   throughput, latency, memory, and LoRA training cost.
 
-## 8. Not frozen yet
+## 8. Training (frozen after tuning on MATH dev 100)
 
-- Training hyperparameters (learning rate, epochs, LoRA rank and targets, packing), tuned on dev data, and
-  the number of training seeds.
-- The number of samples per problem at evaluation, the cluster unit for the confidence intervals, and which
-  budget is the headline (32k with prefix rescoring is the plan).
-- The training script, the final evaluation script, and the vLLM scheduling benchmark.
+Scripts: `training/sft_data.py` (`9f4c31ef…`), `training/train_lora.py` (`b8fcde9d…`), `training/merge_lora.py`
+(`a673c2f7…`). Stack: unsloth 2026.10.5, transformers 5.17.0, peft 0.21.1, torch 2.11.0, one A100 40 GB.
+
+| Item | Setting |
+|---|---|
+| Adapter | LoRA r 16, alpha 16, dropout 0, BF16, on 12 projection types (attention, MLP and linear attention): 248 modules, 43,278,336 parameters |
+| Step | 16 questions (1,971 questions → 124 steps per epoch; the last step has 3) |
+| Loss | mean over all supervised tokens of the step (§5) |
+| Microbatches | length-sorted inside a step, right padding masked out, at most 32,768 padded tokens each, no packing |
+| Optimizer | AdamW (0.9, 0.999, eps 1e-8), weight decay 0, gradient clip 1.0 |
+| Schedule | linear warmup over 10 steps, then constant |
+| **Learning rate, epochs** | **2e-4, 1 epoch, for all three groups** |
+| Evaluated weights | the adapter merged into the pinned base weights (`merge_lora.py`), loaded in vLLM like the base model |
+
+**Training seeds: 3**, the same for every group, so groups 2–4 are paired by seed. A seed sets the LoRA
+initialization (`--seed`) and the question order (`--order-seed`):
+
+| Seed | LoRA init | Question order |
+|---|---|---|
+| 1 | 91432026 | 20261021 |
+| 2 | 91432027 | 20261022 |
+| 3 | 91432028 | 20261023 |
+
+Seed 1 is the tuning run: with a constant learning rate after warmup, its epoch-1 adapter at 2e-4 is exactly a
+1-epoch run, so it is used as is.
+
+**How the setting was chosen.** Grid: learning rate {1e-4, 2e-4} × epochs {1, 2, 3}, seed 1, for each group.
+Each adapter was merged and evaluated on MATH dev 100 (4 samples per problem, 16k tokens, T 0.6, top-p 0.95,
+top-k 20, vLLM 0.21.0 with 2,048-token prefill chunks and 0.80 GPU memory). Rule, fixed before any result: in each
+group, the highest mean dev accuracy; settings within 1 point of it go to fewer epochs, then the lower learning
+rate. Dev accuracy:
+
+| Group | 1e-4, 1 ep | 1e-4, 2 ep | 1e-4, 3 ep | 2e-4, 1 ep | 2e-4, 2 ep | 2e-4, 3 ep |
+|---|---|---|---|---|---|---|
+| 2 (human solutions) | 0.578 | 0.578 | 0.585 | **0.653** | 0.613 | 0.615 |
+| 3 (light-cleaned traces) | 0.895 | 0.910 | 0.878 | **0.915** | 0.890 | 0.905 |
+| 4 (heavy-cleaned traces) | 0.870 | 0.875 | 0.878 | **0.898** | 0.880 | 0.885 |
+
+Condition 1 (Base, Minerva 4-shot) on the same dev setup: 0.558.
+
+- Every evaluated checkpoint first checks that vLLM on the merged weights reproduces the trained adapter's target
+  loss on four fixed training sequences (tolerance 3% relative). 16 of 18 pass, with at most 1.8%. Group 2 at 2e-4
+  with 2 and 3 epochs gives 3.04% and 3.4%. Both come from one 209-token sequence whose loss had become very small
+  (summed NLL 12.1 and 4.1; absolute differences 0.37 and 0.14). These two results are reported as they are and
+  were not selected.
+- These dev accuracies use the grading of `eval_common.py` alone. Under the §9 rule, 5 group 3 checkpoints each lose
+  one sample (0.25 points). No selection changes.
+- On one A100 40 GB, a 3-epoch tuning run took 46 minutes for group 3 and 32 minutes for group 4, model loading
+  included.
+
+## 9. Final evaluation (frozen)
+
+- Weights: the merged adapter of each group and seed (9 models), plus the base model for condition 1.
+- Prompts and grader as in §7. Sampling: T 0.6, top-p 0.95, top-k 20, vLLM 0.21.0, the engine settings of the dev
+  evaluation.
+- **Closed think block required** (conditions 2–4): an output whose `<think>` block is not closed is graded wrong.
+  Only the last `\boxed{}` after `</think>` counts. Condition 1 has no think block.
+- **Samples per problem:** tier 1 and tier 2: 8; tier 3 (MATH-500): 4. Condition 1 gets the same numbers.
+- **Headline budget:** 32,768 generated tokens. The same outputs are scored again after truncation at 4k, 8k and
+  16k tokens; an output cut inside its think block is wrong under the rule above.
+- **Accuracy** of a condition: the mean over problems of the mean over its seeds and samples.
+- **Confidence intervals** (paired, clustered, Miller 2024): tier 1 is clustered by source problem (30 clusters,
+  89 scored variants); tiers 2 and 3 by problem. All seeds and samples of a problem stay in its cluster, so the
+  intervals include seed variation.
+
+## 10. Not frozen yet
+
+- The final evaluation script and the vLLM scheduling benchmark (they implement §9 and §7 without changing them).

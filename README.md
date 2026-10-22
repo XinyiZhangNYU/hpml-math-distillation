@@ -23,7 +23,9 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Group 4 training file built | done |
 | Group 2 (human solutions) training file | done |
 | Exact token counts of groups 2–4 | done |
-| LoRA training (groups 2–4), with hyperparameters tuned on dev data | scripts written and checked offline; GPU runs to do |
+| Hyperparameter tuning on MATH dev 100 (18 checkpoints) | done: 2e-4, 1 epoch for groups 2–4 |
+| Training setup and evaluation protocol frozen (DESIGN.md §8–§9) | done |
+| LoRA training, 3 seeds per group | seed 1 done (tuning run); seeds 2–3 to do |
 | Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
@@ -207,18 +209,18 @@ different traces. Use the archived ones to reproduce the training sets.
 
 The scripts in `training/` run on a Colab A100 with the pinned stacks of the capacity test (training: unsloth
 2026.10.5, transformers 5.17.0, peft 0.21.1, torch 2.11.0) and of the base probes (evaluation: vLLM 0.21.0,
-math-verify 0.9.0). Their frozen constraints are in DESIGN.md §5–§8; the hyperparameters are chosen on MATH dev 100
-and are not frozen yet.
+math-verify 0.9.0). The training setup, the tuning results and the final evaluation protocol are frozen in
+DESIGN.md §8–§9.
 
 | Script | What it does |
 |---|---|
 | `sft_data.py` | Builds the §3 sequences and loss masks, checks the group totals against `token_counts.json`, and plans the steps: a seeded question order shared by all groups, 16 questions per step, length-sorted microbatches with right padding, no packing. Tokenizer only. |
-| `train_lora.py` | BF16 LoRA r 16 on one group: AdamW, warmup then constant learning rate, token-mean loss per step, an adapter saved after every epoch. |
+| `train_lora.py` | BF16 LoRA r 16 on one group: AdamW, warmup then constant learning rate, token-mean loss per step, an adapter saved after every epoch. `--seed` sets the LoRA initialization and `--order-seed` the question order. |
 | `merge_lora.py` | Merges an adapter into the pinned base weights shard by shard, so vLLM loads the result like the base model. |
 | `dev_eval.py` | vLLM generation on MATH dev 100 and grading with `validation/eval_common.py`, with re-grading after truncation at 4k / 8k / 16k tokens. It first checks that vLLM on the merged weights reproduces the adapter's loss on four fixed training sequences. |
 | `colab_smoke_cell.py` | One Colab cell: a short run of groups 3 and 2, a merge, and a dev evaluation, to measure time and memory. It fetches every input from this repository and the Drive folder and checks the SHA-256 of each. |
 | `run_tuning.py` | The tuning grid: learning rate {1e-4, 2e-4} × epochs {1, 2, 3} for groups 3, 4 and 2, each adapter merged and evaluated on MATH dev 100 (4 samples, 16k tokens), plus condition 1 on dev as a reference. Picks each group's setting by the rule fixed in advance (highest mean dev accuracy; within 1 point, fewer epochs, then the lower learning rate). Skips finished jobs when run again. |
-| `colab_tuning_cell.py` | One Colab cell that checks every input like the smoke cell, starts `run_tuning.py` in the background and follows its log. |
+| `colab_tuning_cell.py` | One Colab cell that checks every input like the smoke cell, starts `run_tuning.py` in the background and follows its log. It pins `train_lora.py` as of commit `1d71b47` (the tuning runs); the current script only adds `--order-seed`, and its defaults give the same training. |
 
 The final evaluation script and the vLLM scheduling benchmark will be added here.
 
