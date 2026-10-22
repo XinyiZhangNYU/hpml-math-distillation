@@ -26,6 +26,7 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Hyperparameter tuning on MATH dev 100 (18 checkpoints) | done: 2e-4, 1 epoch for groups 2–4 |
 | Training setup and evaluation protocol frozen (DESIGN.md §8–§9) | done |
 | LoRA training, 3 seeds per group | seed 1 done (tuning run); seeds 2–3 to do |
+| Final evaluation scripts (`final_eval.py`, `final_stats.py`) | written and checked offline; GPU runs to do |
 | Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
@@ -221,8 +222,10 @@ DESIGN.md §8–§9.
 | `colab_smoke_cell.py` | One Colab cell: a short run of groups 3 and 2, a merge, and a dev evaluation, to measure time and memory. It fetches every input from this repository and the Drive folder and checks the SHA-256 of each. |
 | `run_tuning.py` | The tuning grid: learning rate {1e-4, 2e-4} × epochs {1, 2, 3} for groups 3, 4 and 2, each adapter merged and evaluated on MATH dev 100 (4 samples, 16k tokens), plus condition 1 on dev as a reference. Picks each group's setting by the rule fixed in advance (highest mean dev accuracy; within 1 point, fewer epochs, then the lower learning rate). Skips finished jobs when run again. |
 | `colab_tuning_cell.py` | One Colab cell that checks every input like the smoke cell, starts `run_tuning.py` in the background and follows its log. It pins `train_lora.py` as of commit `1d71b47` (the tuning runs); the current script only adds `--order-seed`, and its defaults give the same training. |
+| `final_eval.py` | The final evaluation of one model (DESIGN.md §9) on the frozen test tiers: 8 samples per problem in tiers 1 and 2, 4 in tier 3, 32k tokens, rescored at 4k / 8k / 16k. Conditions 2–4 use the training chat template and count an output whose think block is not closed as wrong; condition 1 uses the Minerva 4-shot prompt. Sampling and engine settings come from `dev_eval.py`; the request seed is 91432026 + 1,000,000 × tier + item index + 100,000 × sample, the same for every model. It checks every test file by SHA-256, records the excluded tier-1 item without scoring it, and writes per-output scores, the output texts and a summary for each tier. |
+| `final_stats.py` | Combines the runs: accuracy per condition, tier and budget (mean over problems of the mean over seeds and samples), truncation rate, output length, and paired, clustered 95% intervals (Miller 2024; tier 1 clustered by source problem). CPU only. |
 
-The final evaluation script and the vLLM scheduling benchmark will be added here.
+The vLLM scheduling benchmark will be added here.
 
 ## References
 

@@ -244,4 +244,6 @@ Condition 1 (Base, Minerva 4-shot) on the same dev setup: 0.558.
 
 ## 10. Not frozen yet
 
-- The final evaluation script and the vLLM scheduling benchmark (they implement §9 and §7 without changing them).
+- The final evaluation scripts are written and checked offline (`training/final_eval.py`, `training/final_stats.py`);
+  they implement §9 without changing it.
+- The vLLM scheduling benchmark (§7).
