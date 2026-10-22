@@ -26,7 +26,7 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Hyperparameter tuning on MATH dev 100 (18 checkpoints) | done: 2e-4, 1 epoch for groups 2–4 |
 | Training setup and evaluation protocol frozen (DESIGN.md §8–§9) | done |
 | LoRA training, 3 seeds per group | seed 1 done (tuning run); seeds 2–3 to do |
-| Final evaluation scripts (`final_eval.py`, `final_stats.py`) | written and checked offline; GPU runs to do |
+| Final evaluation scripts (`final_eval.py`, `final_stats.py`, `run_final.py`) | written and checked offline; Colab run in progress |
 | Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
@@ -224,6 +224,8 @@ DESIGN.md §8–§9.
 | `colab_tuning_cell.py` | One Colab cell that checks every input like the smoke cell, starts `run_tuning.py` in the background and follows its log. It pins `train_lora.py` as of commit `1d71b47` (the tuning runs); the current script only adds `--order-seed`, and its defaults give the same training. |
 | `final_eval.py` | The final evaluation of one model (DESIGN.md §9) on the frozen test tiers: 8 samples per problem in tiers 1 and 2, 4 in tier 3, 32k tokens, rescored at 4k / 8k / 16k. Conditions 2–4 use the training chat template and count an output whose think block is not closed as wrong; condition 1 uses the Minerva 4-shot prompt. Sampling and engine settings come from `dev_eval.py`; the request seed is 91432026 + 1,000,000 × tier + item index + 100,000 × sample, the same for every model. It checks every test file by SHA-256, records the excluded tier-1 item without scoring it, and writes per-output scores, the output texts and a summary for each tier. |
 | `final_stats.py` | Combines the runs: accuracy per condition, tier and budget (mean over problems of the mean over seeds and samples), truncation rate, output length, and paired, clustered 95% intervals (Miller 2024; tier 1 clustered by source problem). CPU only. |
+| `run_final.py` | The final stage: copies the seed-1 adapters of the tuning run, trains seeds 2 and 3 (groups 3, 4 and 2; 2e-4, 1 epoch), merges and evaluates the 9 models with `final_eval.py` (with the loss check), evaluates condition 1, and runs `final_stats.py`. Skips finished jobs when run again and copies the results to Drive after every job. |
+| `colab_final_cell.py` | One Colab cell that checks every input by SHA-256 (scripts and test files from this repository, training data from the Drive folder), restores earlier results from Drive on a new runtime, starts `run_final.py` in the background and follows its log. Needs Google Drive mounted. |
 
 The vLLM scheduling benchmark will be added here.
 
