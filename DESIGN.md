@@ -242,8 +242,42 @@ Condition 1 (Base, Minerva 4-shot) on the same dev setup: 0.558.
   89 scored variants); tiers 2 and 3 by problem. All seeds and samples of a problem stay in its cluster, so the
   intervals include seed variation.
 
-## 10. Not frozen yet
+## 10. Final results (3 seeds, §9)
 
-- The final evaluation scripts are written and checked offline (`training/final_eval.py`, `training/final_stats.py`);
-  they implement §9 without changing it.
+Run with `training/run_final.py` on a Colab A100 40GB, 2026-10-22 to 2026-10-24. Each job ran once; no job was
+repeated. Accuracy at the 32k budget, with paired, clustered 95% intervals:
+
+| Condition | Tier 1 (89 variants) | Tier 2 (AIME/HMMT 2026) | Tier 3 (MATH-500) |
+|---|---|---|---|
+| 1 base model, 4-shot | 0.567 [0.455, 0.680] | 0.012 [0.001, 0.023] | 0.505 [0.471, 0.539] |
+| 2 human solutions | 0.564 [0.447, 0.680] | 0.019 [0.003, 0.034] | 0.516 [0.484, 0.547] |
+| 3 lightly cleaned traces | 0.948 [0.918, 0.977] | 0.393 [0.310, 0.476] | 0.907 [0.889, 0.925] |
+| 4 heavily cleaned traces | 0.928 [0.887, 0.969] | 0.324 [0.249, 0.399] | 0.886 [0.867, 0.904] |
+
+| Paired difference | Tier 1 | Tier 2 | Tier 3 |
+|---|---|---|---|
+| 3 − 4 | +0.019 [+0.002, +0.037] | +0.069 [+0.045, +0.092] | +0.021 [+0.012, +0.031] |
+| 2 − 1 | −0.004 [−0.049, +0.041] | +0.007 [−0.008, +0.021] | +0.011 [−0.010, +0.031] |
+
+Accuracy after truncation, conditions 3 / 4:
+
+| Budget | Tier 1 | Tier 2 | Tier 3 |
+|---|---|---|---|
+| 4k | 0.900 / 0.912 | 0.211 / 0.227 | 0.847 / 0.853 |
+| 8k | 0.929 / 0.923 | 0.277 / 0.277 | 0.877 / 0.873 |
+| 16k | 0.942 / 0.927 | 0.339 / 0.308 | 0.896 / 0.882 |
+
+Truncation rate and mean output length at 32k, conditions 3 / 4:
+
+| Tier | Truncation rate | Mean output length (tokens) |
+|---|---|---|
+| 1 | 0.018 / 0.020 | 1,571 / 1,361 |
+| 2 | 0.411 / 0.337 | 18,088 / 14,890 |
+| 3 | 0.036 / 0.030 | 2,567 / 2,014 |
+
+Condition 4 trains on 72% of the tokens of condition 3 (§5). This design cannot separate the effect of cleaner
+traces from the effect of shorter ones.
+
+## 11. Not frozen yet
+
 - The vLLM scheduling benchmark (§7).

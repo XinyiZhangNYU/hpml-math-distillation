@@ -25,9 +25,10 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Exact token counts of groups 2–4 | done |
 | Hyperparameter tuning on MATH dev 100 (18 checkpoints) | done: 2e-4, 1 epoch for groups 2–4 |
 | Training setup and evaluation protocol frozen (DESIGN.md §8–§9) | done |
-| LoRA training, 3 seeds per group | seed 1 done (tuning run); seeds 2–3 to do |
-| Final evaluation scripts (`final_eval.py`, `final_stats.py`, `run_final.py`) | written and checked offline; Colab run in progress |
-| Evaluation of the 4 conditions; vLLM scheduling experiment | to do |
+| LoRA training, 3 seeds per group | done |
+| Final evaluation scripts (`final_eval.py`, `final_stats.py`, `run_final.py`) | done |
+| Final evaluation of the 4 conditions (3 seeds; results in DESIGN.md §10) | done |
+| vLLM scheduling experiment | to do |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
 
@@ -206,7 +207,7 @@ different traces. Use the archived ones to reproduce the training sets.
     ```
     It asserts that the group 3 recount equals the recorded `qwen_total_tokens`. Results are in DESIGN.md §5.
 
-### E. Training and evaluation (in progress)
+### E. Training and evaluation
 
 The scripts in `training/` run on a Colab A100 with the pinned stacks of the capacity test (training: unsloth
 2026.10.5, transformers 5.17.0, peft 0.21.1, torch 2.11.0) and of the base probes (evaluation: vLLM 0.21.0,
