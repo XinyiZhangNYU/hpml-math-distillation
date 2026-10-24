@@ -28,7 +28,9 @@ is in **[DESIGN.md](DESIGN.md)**.
 | LoRA training, 3 seeds per group | done |
 | Final evaluation scripts (`final_eval.py`, `final_stats.py`, `run_final.py`) | done |
 | Final evaluation of the 4 conditions (3 seeds; results in DESIGN.md §10) | done |
-| vLLM scheduling experiment (protocol frozen in DESIGN.md §11) | runs pending |
+| vLLM scheduling experiment (DESIGN.md §11) | done: the queue gives 2.05× the throughput of fixed groups at 32k |
+| LoRA training and evaluation cost (DESIGN.md §11.2) | done |
+| Loop early-stop estimate (exploratory, offline; DESIGN.md §12) | done |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
 
