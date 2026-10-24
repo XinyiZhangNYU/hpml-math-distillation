@@ -28,7 +28,7 @@ is in **[DESIGN.md](DESIGN.md)**.
 | LoRA training, 3 seeds per group | done |
 | Final evaluation scripts (`final_eval.py`, `final_stats.py`, `run_final.py`) | done |
 | Final evaluation of the 4 conditions (3 seeds; results in DESIGN.md §10) | done |
-| vLLM scheduling experiment | to do |
+| vLLM scheduling experiment (protocol frozen in DESIGN.md §11) | runs pending |
 
 ## Quick check (offline, about 30 s, no GPU and no API)
 
@@ -227,8 +227,11 @@ DESIGN.md §8–§9.
 | `final_stats.py` | Combines the runs: accuracy per condition, tier and budget (mean over problems of the mean over seeds and samples), truncation rate, output length, and paired, clustered 95% intervals (Miller 2024; tier 1 clustered by source problem). CPU only. |
 | `run_final.py` | The final stage: copies the seed-1 adapters of the tuning run, trains seeds 2 and 3 (groups 3, 4 and 2; 2e-4, 1 epoch), merges and evaluates the 9 models with `final_eval.py` (with the loss check), evaluates condition 1, and runs `final_stats.py`. Skips finished jobs when run again and copies the results to Drive after every job. |
 | `colab_final_cell.py` | One Colab cell that checks every input by SHA-256 (scripts and test files from this repository, training data from the Drive folder), restores earlier results from Drive on a new runtime, starts `run_final.py` in the background and follows its log. Needs Google Drive mounted. |
-
-The vLLM scheduling benchmark will be added here.
+| `sched_bench.py` | The scheduling benchmark of DESIGN.md §11: fixed groups of 64 requests versus a continuously refilled queue on one vLLM engine, MATH dev 100 × 2 samples, at 32k and 8k tokens. Records throughput, per-request first-token and finish times, slot use, resident tokens, preemptions and GPU memory, and checks accuracy. |
+| `lora_cost.py` | LoRA training and evaluation cost from the records of the final run (time, tokens per second, peak memory). CPU only. |
+| `early_stop_estimate.py` | Offline, exploratory estimate of a loop early-stop rule on the saved final outputs (DESIGN.md §12). CPU only. |
+| `run_sched.py` | Runs `lora_cost.py`, `early_stop_estimate.py`, the merge of the condition 3 / seed 1 adapter and `sched_bench.py`, skipping finished jobs, and copies the results to Drive after every job. |
+| `colab_sched_cell.py` | One Colab cell that checks the scripts by SHA-256, starts `run_sched.py` in the background and follows its log. Needs Google Drive mounted with the final run in `MyDrive/hpml_final`. |
 
 ## References
 

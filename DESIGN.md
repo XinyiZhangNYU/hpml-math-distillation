@@ -278,6 +278,50 @@ Truncation rate and mean output length at 32k, conditions 3 / 4:
 Condition 4 trains on 72% of the tokens of condition 3 (§5). This design cannot separate the effect of cleaner
 traces from the effect of shorter ones.
 
-## 11. Not frozen yet
+## 11. Systems experiment (frozen 2026-10-24, before any run)
 
-- The vLLM scheduling benchmark (§7).
+Question: on vLLM, how much do fixed-size request groups lose against a continuously refilled queue when output
+lengths vary as much as they do for these models? Script: `training/sched_bench.py`, run by `training/run_sched.py`
+on one Colab A100 40GB.
+
+- **Model and workload:** the merged condition 3 / seed 1 model (the loss check of §9 must pass first). MATH dev 100 ×
+  2 samples = 200 requests, in the order of the dev evaluation (all problems for sample 0, then for sample 1), with
+  the chat prompt and sampling of §9 and the request seed 91432026 + item index + 100,000 × sample. Dev problems are
+  used so that no test set is generated again.
+- **Engine:** vLLM 0.21.0 with the settings of the final evaluation (BF16, 2,048-token prefill chunks, 0.80 GPU
+  memory, CUDA graphs, no prefix caching), 64 sequence slots, maximum length 32,768 + 2,048. One engine serves all
+  runs.
+- **Modes:** *fixed*: requests go in 64 at a time in workload order (groups of 64, 64, 64 and 8), and the next group
+  goes in when every request of the previous one has finished. *queue*: all 200 requests go in at once, and the
+  engine starts a waiting request whenever a slot is free. Both modes drive the engine through the same
+  `add_request()` / `step()` loop, so they differ only in when requests are submitted. A warm-up of 8 short
+  requests also checks this loop against `LLM.generate()`.
+- **Runs, in this order:** budget 32,768: fixed, queue, queue, fixed; budget 8,192: queue, fixed. The 32k runs are
+  ordered ABBA so that drift over the session does not favour one mode.
+- **Primary result:** at 32k, generated tokens per second of generation wall time, queue over fixed (mean of the
+  two runs of each mode), and the wall time of the 200 requests. With two runs per mode there is no interval: both
+  runs are reported, and a difference smaller than the spread between the two runs of one mode is reported as no
+  difference.
+- **Secondary:** per-request first-token and finish times (mean, median, p90, max); the busy slot share (the summed
+  time from first token to finish over 64 × wall time); in fixed mode, each group's time and longest output; peak
+  running requests and peak resident tokens (prompt and generated tokens of the running requests) against the KV
+  cache capacity; vLLM's preemption counter; whole-device GPU memory (nvidia-smi, once a second); the same at 8k.
+- **Sanity checks, not results:** accuracy (§9 rule) and truncation per run, and the share of identical outputs
+  between runs. The request seed is fixed, but batch composition changes the arithmetic, so outputs may differ
+  between runs; accuracy should not differ beyond sampling noise.
+- **LoRA training cost** (`training/lora_cost.py`, from the records of the final run, nothing is rerun): per group
+  and seed, the epoch-1 training time, real (non-padding) tokens and tokens per second, peak PyTorch and
+  whole-device GPU memory, host memory and load time from `train_report.json`; merge and evaluation job times from
+  the final run's state file; generation time and throughput of each evaluation tier.
+- **Not claimed:** results for other GPUs, models, slot counts or workloads; a fixed group size other than the slot
+  count.
+
+## 12. Exploratory: loop early stop (offline, chosen after the results)
+
+`training/early_stop_estimate.py` applies a loop rule to the saved outputs of conditions 2–4 (all seeds and tiers):
+every 1,000 characters, if the last 300 characters occurred within the previous 20,000 at distance p and the text
+repeats with period p over the last max(2p, 1,500) characters, generation would stop there. The stopped prefix is
+graded under §9 and its tokens are estimated from the output's own tokens per character. Reported per condition and
+tier: outputs stopped (truncated or finished, correct before the stop or not), accuracy with and without the rule,
+and the share of generated tokens saved. Nothing is generated, and the rule was chosen after the results, so this is
+an estimate, not a result of the design.
