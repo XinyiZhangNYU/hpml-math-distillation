@@ -278,6 +278,48 @@ Truncation rate and mean output length at 32k, conditions 3 / 4:
 Condition 4 trains on 72% of the tokens of condition 3 (§5). This design cannot separate the effect of cleaner
 traces from the effect of shorter ones.
 
+### 10.1 Exploratory: why tier 2 outputs hit the 32k budget (post hoc, not pre-registered)
+
+Question: do the tier 2 outputs of conditions 3 and 4 that reach 32,768 tokens run out of budget while still
+working, or are they stuck in a loop? Script: `training/colab_trunc_check.py`, Colab CPU, over the saved outputs of
+the final run (all 3 seeds, checked against the SHA-256 in each `summary.json`); no model and no API. Each truncated
+output is put in one class:
+
+- **Exact loop:** the end of the text repeats with a fixed period over at least max(2p, 1,500) characters.
+- **Near-repetitive:** no exact loop, but the zlib ratio of the last 16,000 characters is below 0.2767, the 5th
+  percentile of finished outputs longer than 8k tokens.
+- **No repetition found:** the rest.
+
+Every `\boxed{}` in the output is also graded with math-verify 0.9.0, as in the frozen grader (one comparison timed
+out and counts as wrong).
+
+| | Condition 3 | Condition 4 |
+|---|---|---|
+| Truncated / all outputs | 622 / 1,512 | 510 / 1,512 |
+| Exact loop | 201 (32%) | 275 (54%) |
+| Near-repetitive | 130 (21%) | 84 (16%) |
+| No repetition found | 291 (47%) | 151 (30%) |
+| Truncated outputs with a correct `\boxed{}` anywhere | 8 | 2 |
+| Truncated on a problem this condition never solved | 282 (45%) | 195 (38%) |
+| No repetition found, on a problem solved at least once (share of all outputs) | 160 (10.6%) | 92 (6.1%) |
+| Loop start, median [p10, p90] (tokens) | 18,255 [6,212, 28,952] | 14,231 [5,088, 26,922] |
+| Loop period, median (tokens) | 24 | 59 |
+| Finished outputs over 8k tokens: count / exact loops / accuracy | 306 / 0 / 0.575 | 222 / 0 / 0.329 |
+
+Exact loops per seed: 80 / 62 / 59 (condition 3) and 118 / 53 / 104 (condition 4). In 18 sampled outputs
+(`examples.txt`, 3 per class and condition), the classes match the text. Exact loops repeat one number or sentence
+thousands of times. Near-repetitive outputs mostly enumerate cases without end or restate the same doubt. Outputs
+with no repetition found are mostly still computing, often restarting after finding an error; a few take the 2026
+problems for older contest problems and try to recall an answer.
+
+- Most 32k truncations are not a budget limit: 53% (condition 3) and 70% (condition 4) are loops or
+  near-repetitive. Almost no truncated output had already found the answer (8 and 2).
+- A larger budget has little room to help. Even if every truncated output with no repetition found, on a problem
+  solved at least once, turned correct, tier 2 accuracy would rise by at most 10.6 (condition 3) and 6.1
+  (condition 4) points. Going from 16k to 32k added 5.4 and 1.6 points (§10).
+- Condition 4 writes shorter outputs but loops more often (54% against 32% of its truncations). The cause was not
+  tested.
+
 ## 11. Systems experiment (frozen 2026-10-24, before any run)
 
 Question: on vLLM, how much do fixed-size request groups lose against a continuously refilled queue when output
