@@ -61,7 +61,7 @@ Why these models (development evidence, `base_probe/`, `validation/`):
 
 ## 4. Cleaning (delete-only; `content` is never changed)
 
-**Light cleaning** (groups 3 and 4), `light_clean.py`:
+**Rule-based check** (groups 3 and 4; script `light_clean.py`):
 
 | Rule | What it deletes |
 |---|---|
@@ -72,11 +72,11 @@ Why these models (development evidence, `base_probe/`, `validation/`):
 There is a safety valve: a trace that would lose more than 10% of its reasoning counts as an admission failure.
 
 - "Content unrelated to the problem" is not a rule, because it has no mechanical definition.
-- Result: 0 triggers, so the light-cleaned traces are byte-identical to the raw traces.
+- Result: 0 triggers, so groups 3 and 4 start from the raw traces, byte-identical.
 
-**Heavy cleaning** (group 4 only), `claude_label.py`:
+**Cleaning** (group 4 only; script `claude_label.py`):
 
-- Scope: only traces with ≥ 300 reasoning tokens (797 traces). Shorter traces equal their light-cleaned version.
+- Scope: only traces with ≥ 300 reasoning tokens (797 traces). Shorter traces stay raw.
 - The reasoning is split into sentence units (`heavy_clean_v3.split_units`), and only whole units are deleted.
 - What gets deleted, per the frozen `LABELING_GUIDE.md`:
   - abandoned branches (`dropped_at` required);
@@ -114,8 +114,8 @@ Automatic checks (all passed):
 |---|---|---|
 | 1 | 9B-Base, no training | — |
 | 2 | LoRA on human solutions | MATH reference solutions of the 1,971 kept questions (`group2_human.jsonl`) |
-| 3 | LoRA on light-cleaned traces (main) | `final_traces.jsonl` (raw = light) |
-| 4 | LoRA on heavy-cleaned traces | `group4_heavy.jsonl` |
+| 3 | LoRA on raw traces (main) | `final_traces.jsonl` |
+| 4 | LoRA on cleaned traces | `group4_heavy.jsonl` |
 
 Groups 2–4 share:
 
@@ -132,8 +132,8 @@ tokens is reported for every group. Exact counts with the pinned tokenizer, prom
 | Group | Total tokens | Mean | Median | Max | Over 8k / 16k / 32k |
 |---|---|---|---|---|---|
 | 2 (human solutions, empty think block) | 611,428 | 310.2 | 242 | 2,640 | 0 / 0 / 0 |
-| 3 (raw = light) | 2,420,158 | 1,227.9 | 534 | 23,538 | 44 / 8 / 0 |
-| 4 (heavy) | 1,750,516 | 888.1 | 512 | 20,162 | 12 / 2 / 0 |
+| 3 (raw traces) | 2,420,158 | 1,227.9 | 534 | 23,538 | 44 / 8 / 0 |
+| 4 (cleaned traces) | 1,750,516 | 888.1 | 512 | 20,162 | 12 / 2 / 0 |
 
 The group 3 recount equals the `qwen_total_tokens` recorded at admission for all 1,971 traces. Group 4 has
 72.3% of group 3's tokens. No sequence needs truncation.
@@ -212,8 +212,8 @@ rate. Dev accuracy:
 | Group | 1e-4, 1 ep | 1e-4, 2 ep | 1e-4, 3 ep | 2e-4, 1 ep | 2e-4, 2 ep | 2e-4, 3 ep |
 |---|---|---|---|---|---|---|
 | 2 (human solutions) | 0.578 | 0.578 | 0.585 | **0.653** | 0.613 | 0.615 |
-| 3 (light-cleaned traces) | 0.895 | 0.910 | 0.878 | **0.915** | 0.890 | 0.905 |
-| 4 (heavy-cleaned traces) | 0.870 | 0.875 | 0.878 | **0.898** | 0.880 | 0.885 |
+| 3 (raw traces) | 0.895 | 0.910 | 0.878 | **0.915** | 0.890 | 0.905 |
+| 4 (cleaned traces) | 0.870 | 0.875 | 0.878 | **0.898** | 0.880 | 0.885 |
 
 Condition 1 (Base, Minerva 4-shot) on the same dev setup: 0.558.
 
@@ -251,8 +251,8 @@ repeated. Accuracy at the 32k budget, with paired, clustered 95% intervals:
 |---|---|---|---|
 | 1 base model, 4-shot | 0.567 [0.455, 0.680] | 0.012 [0.001, 0.023] | 0.505 [0.471, 0.539] |
 | 2 human solutions | 0.564 [0.447, 0.680] | 0.019 [0.003, 0.034] | 0.516 [0.484, 0.547] |
-| 3 lightly cleaned traces | 0.948 [0.918, 0.977] | 0.393 [0.310, 0.476] | 0.907 [0.889, 0.925] |
-| 4 heavily cleaned traces | 0.928 [0.887, 0.969] | 0.324 [0.249, 0.399] | 0.886 [0.867, 0.904] |
+| 3 raw traces | 0.948 [0.918, 0.977] | 0.393 [0.310, 0.476] | 0.907 [0.889, 0.925] |
+| 4 cleaned traces | 0.928 [0.887, 0.969] | 0.324 [0.249, 0.399] | 0.886 [0.867, 0.904] |
 
 | Paired difference | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|
@@ -404,8 +404,8 @@ Epoch 1, 124 optimizer steps, 43,278,336 trainable parameters; mean of the 3 see
 | Group | Real tokens | Training time (s) | Real tokens/s | Real / padded tokens | Peak PyTorch memory (GiB) | Peak device memory (GiB) |
 |---|---|---|---|---|---|---|
 | 2 human solutions | 611,428 | 263.8 (257.1–272.7) | 2,319 | 0.78 | 19.6 | 20.7 |
-| 3 lightly cleaned | 2,420,158 | 937.3 (914.5–964.6) | 2,583 | 0.91 | 25.6 (max 27.3) | 28.0 (max 29.7) |
-| 4 heavily cleaned | 1,750,516 | 668.0 (608.5–705.1) | 2,632 | 0.89 | 23.1 | 25.0 |
+| 3 raw traces | 2,420,158 | 937.3 (914.5–964.6) | 2,583 | 0.91 | 25.6 (max 27.3) | 28.0 (max 29.7) |
+| 4 cleaned traces | 1,750,516 | 668.0 (608.5–705.1) | 2,632 | 0.89 | 23.1 | 25.0 |
 
 Training time follows the number of real tokens: group 4 has 0.72 times the tokens of group 3 and needs 0.71 times
 the time. Group 2 has the lowest throughput and the most padding. The nine adapters took
@@ -417,8 +417,8 @@ Evaluation (§9, all three tiers; mean per seed, condition 1 has one run):
 |---|---|---|---|
 | 1 base model | 2.36 | 6.61 | 777 |
 | 2 human solutions | 1.82 | 5.63 | 859 |
-| 3 lightly cleaned traces | 4.46 | 15.37 | 956 |
-| 4 heavily cleaned traces | 3.49 | 12.50 | 995 |
+| 3 raw traces | 4.46 | 15.37 | 956 |
+| 4 cleaned traces | 3.49 | 12.50 | 995 |
 
 The ten evaluations took 32.2 h of job time, about 20 times the training time, so generation dominates the cost of
 this study. Condition 4 generates 19% fewer tokens than condition 3 and needs 22% less generation time; it is also

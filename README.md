@@ -18,8 +18,8 @@ is in **[DESIGN.md](DESIGN.md)**.
 | Test sets frozen and deduplicated against training data | done |
 | 2,000 training questions selected | done |
 | Teacher traces generated (1,971 kept, USD 2.68) | done |
-| Light cleaning (groups 3 and 4) | done (0 changes) |
-| Heavy cleaning (group 4; 797 traces) | done |
+| Rule-based check of the raw traces (groups 3 and 4) | done (0 changes, so group 3 trains on the raw traces) |
+| Cleaning: deleting abandoned attempts and repeated work (group 4; 797 traces) | done |
 | Group 4 training file built | done |
 | Group 2 (human solutions) training file | done |
 | Exact token counts of groups 2–4 | done |
@@ -45,7 +45,7 @@ files byte for byte:
 - test-freeze stage 2 (the 90 variants and the 6,356-problem training pool);
 - the 2,000-question sample;
 - dry runs of the teacher-generation ledger;
-- dry runs of the heavy-cleaning label checker.
+- dry runs of the cleaning label checker.
 
 It needs Python ≥ 3.10 with `sympy`, and the last line should read `ALL OK`.
 
@@ -68,9 +68,9 @@ validation/
     length_tests/              select_length.py (rebuilds the MATH train pool; shared by the freeze scripts)
     test_freeze/               test-set freeze, stage 1 (Colab CPU) and stage 2 (local); frozen outputs; checks
     teacher_gen/               train2000 selection, teacher generation (paid API) + offline dry run
-    light_clean/               light cleaning rules L1–L3
+    light_clean/               rule-based check L1–L3
     heavy_clean_pilot/         sentence splitter / deletion engine (heavy_clean_v3.py) + reference labels
-    heavy_clean_claude/        heavy-cleaning label tool, labeling guide (frozen), dry run
+    heavy_clean_claude/        cleaning label tool, labeling guide (frozen), dry run
     train_sets/                group 2 and group 4 builders, exact Qwen token counts
 ```
 
@@ -87,9 +87,9 @@ listed with its SHA-256 so that any copy can be verified; scripts expect them un
 | `teacher_gen_b4/raw_responses.jsonl` | 7,794,897 | `c9a582846f346fdd4d08d798f5aa17b9a47780161fafbff56ada0bc8cae7e363` | full paid-response ledger (2,053) |
 | `teacher_gen_b4/grades.jsonl` | 551,097 | `76c7a5384319d8067a0a59314f10e89051f6605ef4457b97e1b2655bc0ce4138` | admission grading of every response |
 | `teacher_gen_b4/manifest.json`, `summary.json` | | see the files | hashes, costs, counts |
-| `light_clean_full/heavy_inputs.jsonl` | 6,612,630 | `b3a23d381c175b5365db7a6f41a8dbd144a939d8bd0b54a45597a5f9eaf87069` | light-cleaned traces (= raw) |
+| `light_clean_full/heavy_inputs.jsonl` | 6,612,630 | `b3a23d381c175b5365db7a6f41a8dbd144a939d8bd0b54a45597a5f9eaf87069` | raw traces after the rule-based check (unchanged) |
 | `light_clean_full/light_report.json` | 509 | `19ed609a7b56a8e96ed681becb133acea2304538b774a2b9a36550a8a91a2c3a` | L1–L3 counts (all 0) |
-| `heavy_claude_full/heavy_claude_full_work.zip` | 7,098,575 | `7b3b4f4eaed38c4a41f0b4228494f3437a51e5b17acc80a2b02972025feeb601` | heavy-cleaning `work/`: 80 batches, labels, results, diff pages |
+| `heavy_claude_full/heavy_claude_full_work.zip` | 7,098,575 | `7b3b4f4eaed38c4a41f0b4228494f3437a51e5b17acc80a2b02972025feeb601` | cleaning `work/`: 80 batches, labels, results, diff pages |
 | `group4_heavy_v1/group4_heavy.jsonl` | 6,625,578 | `8ac76e67953c530714e15ef21411112fc45133db6875fd0e6a6b5f45ed7c286b` | 1,971 rows = **group 4** |
 | `group4_heavy_v1/build_report.json` | 1,869 | see the file | build checks and token estimates |
 | `group2_human_v1/group2_human.jsonl` | 1,818,505 | `176dc0b04b9d599870e37172ff06872c0faeacad2ed4f7f1a3b33d21dabe8f93` | 1,971 rows = **group 2** |
@@ -176,12 +176,12 @@ different traces. Use the archived ones to reproduce the training sets.
 
 ### D. Cleaning and training sets
 
-9. **Light cleaning** (local, free):
+9. **Rule-based check** (local, free):
     ```bash
     python -I validation/next_tests/light_clean/light_clean.py FINAL_TRACES.jsonl OUT_LIGHT
     ```
     It writes `light_report.json` and `heavy_inputs.jsonl`, which must match the hashes in the data table.
-10. **Heavy cleaning** (local, free). Follow `heavy_clean_claude/LABELING_GUIDE.md`.
+10. **Cleaning** (local, free). Follow `heavy_clean_claude/LABELING_GUIDE.md`.
     - Labeling: `claude_label.py prepare heavy_inputs.jsonl WORK_DIR 10 20261019` creates the batches, and the
       labels are written to `WORK_DIR/labels/batch_NNN.json`.
     - The labels are Claude's judgment under the frozen guide and cannot be regenerated exactly. The archived
@@ -254,5 +254,5 @@ DESIGN.md §8–§9.
 
 Data sources: MATH (`EleutherAI/hendrycks_math`), MATH-500 (`HuggingFaceH4/MATH-500`), MathArena AIME 2026 and
 HMMT February 2026, MATH-Perturb, and MBPP, each under its own license. Teacher outputs come from the DeepSeek API.
-The heavy-cleaning deletions were chosen by Claude (Anthropic): Claude only selected which teacher sentences to
+The cleaning deletions were chosen by Claude (Anthropic): Claude only selected which teacher sentences to
 delete and wrote no training text. They are used for course research only.
