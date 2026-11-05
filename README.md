@@ -238,6 +238,9 @@ DESIGN.md §8–§9.
 | `colab_sens_cell.py` | Colab CPU cell that checks and runs `early_stop_sensitivity.py` over the final outputs on Drive. |
 | `run_sched.py` | Runs `lora_cost.py`, `early_stop_estimate.py`, the merge of the condition 3 / seed 1 adapter and `sched_bench.py`, skipping finished jobs, and copies the results to Drive after every job. |
 | `colab_sched_cell.py` | One Colab cell that checks the scripts by SHA-256, starts `run_sched.py` in the background and follows its log. Needs Google Drive mounted with the final run in `MyDrive/hpml_final`. |
+| `pack_bench.py` | Training-time comparison of DESIGN.md §11.4 (timing only). Gates: kernels in use, the check losses of the fused stack against the §8 stack, and per-example losses inside packed rows against the same examples alone (with a no-boundary control). Arms F (fused linear-attention kernels and per-example flash attention, §8 microbatches) and P (as F, the examples of each step packed first-fit into rows of at most 32,768 tokens, sequence boundaries passed to every layer), epoch 1, seed 1. Also summarizes the arms. |
+| `run_pack.py` | Builds the §8 stack and the fused stack, runs the gates, then arms R (`train_lora.py`, unchanged), F and P for groups 2 and 3, each after a balance check, and the summary. Skips finished jobs when run again and copies the results to Drive. |
+| `colab_pack_cell.py` | One Colab cell that checks the scripts and the training data by SHA-256, starts `run_pack.py` in the background, follows its log and asks for the balance answer before each arm. Needs Google Drive mounted. |
 
 ## References
 
