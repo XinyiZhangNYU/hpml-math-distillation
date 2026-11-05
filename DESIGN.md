@@ -584,3 +584,50 @@ those of §12.
 - **Limits:** the three seeds share their problems and training data, so the split tests stability across training
   seed and sampling, not across problems. Both parts stay exploratory: the §12 setting itself was chosen after
   seeing all three seeds. Tokens are estimated from characters as in §12, and time is not measured.
+
+#### Results (run 2026-11-05, Colab CPU runtime, 2 CPUs, 87 s)
+
+- **Reproduction:** passed. The §12 setting reproduces `early_stop_estimate.json` in all nine cells, and its stop
+  point equals `early_stop_estimate.stop_point()` for every output.
+- **Whole grid:** none of the 81 settings changes a grade or stops a finished output, in any condition, tier or seed.
+  Share of generated tokens saved, lowest to highest over the grid: condition 2 53.9–57.0%, condition 3 10.4–11.7%,
+  condition 4 19.9–21.7%. The lowest is probe 150 / minimum loop 3,000 / check 2,000 / maximum period 10,000; the
+  highest is minimum loop 750 / check 500 / maximum period 40,000 (probe 300 for condition 2, 600 for 3 and 4).
+- **Sensitivity:** stable. The §12 setting saves 55.90% (condition 2), 11.26% (3) and 21.13% (4) of generated tokens
+  and stops 318 of 439, 349 of 874 and 443 of 731 truncated outputs. None of its eight neighbours changes a grade or
+  stops a finished output, and their saved shares are (difference in percentage points, relative change):
+
+  | Neighbour | Condition 2 | Condition 3 | Condition 4 |
+  |---|---|---|---|
+  | probe 150 | 55.87% (−0.04, −0.1%) | 11.22% (−0.04, −0.3%) | 21.09% (−0.04, −0.2%) |
+  | probe 600 | 55.93% (+0.03, +0.1%) | 11.29% (+0.03, +0.3%) | 21.17% (+0.04, +0.2%) |
+  | minimum loop 750 | 56.66% (+0.75, +1.4%) | 11.54% (+0.28, +2.5%) | 21.46% (+0.33, +1.5%) |
+  | minimum loop 3,000 | 54.53% (−1.38, −2.5%) | 10.72% (−0.53, −4.7%) | 20.44% (−0.69, −3.3%) |
+  | check 500 | 56.21% (+0.31, +0.5%) | 11.38% (+0.12, +1.1%) | 21.31% (+0.18, +0.9%) |
+  | check 2,000 | 55.16% (−0.74, −1.3%) | 11.03% (−0.23, −2.0%) | 20.75% (−0.39, −1.8%) |
+  | maximum period 10,000 | 55.90% (0.00, 0.0%) | 11.26% (0.00, 0.0%) | 21.13% (0.00, 0.0%) |
+  | maximum period 40,000 | 55.93% (+0.03, +0.1%) | 11.26% (0.00, 0.0%) | 21.13% (0.00, 0.0%) |
+
+  The minimum loop length moves the saved share most; the largest difference is 1.38 points.
+- **Seed split:** does not carry over under the fixed reading. On seed 1 all 81 settings have no grade change and no
+  stop of a finished output, so the choice is the setting that saves most there: probe 600 / minimum loop 750 /
+  check 500 / maximum period 10,000, 24.77% of the seed-1 tokens of conditions 2–4 (the §12 setting: 24.21%). On
+  seeds 2 and 3 it changes no grade and stops no finished output, but two saved shares move more than 5 points from
+  their seed-1 values:
+
+  | Seed | Condition 2 | Condition 3 | Condition 4 |
+  |---|---|---|---|
+  | 1 (chosen there) | 58.84% | 14.07% | 24.27% |
+  | 2 | 61.02% (+2.18, +3.7%) | 10.30% (−3.77, −26.8%) | 16.38% (−7.89, −32.5%) |
+  | 3 | 49.71% (−9.13, −15.5%) | 10.53% (−3.54, −25.2%) | 23.83% (−0.44, −1.8%) |
+  | §12 setting, seeds 1 / 2 / 3 | 57.92 / 59.98 / 48.45% | 13.63 / 9.90 / 10.07% | 23.70 / 15.92 / 23.34% |
+
+  On seeds 2 and 3 the chosen setting saves 0.4–1.3 points more than the §12 setting in every condition, and the §12
+  setting shows the same spread across seeds. The misses come from how much the outputs of each seed loop, not from
+  the parameters: the saved share of a condition differs between seeds by up to 9.5 points under the §12 setting
+  and 11.3 points under the chosen one.
+- **Reading:** around the §12 setting, the loop rule's estimate depends little on its parameters, and in this grid it
+  never changes a grade or stops a finished output. How much it saves is a property of each trained model and its
+  samples, and varies between seeds by more than between parameter settings. All of this stays exploratory (see Limits).
+- **Records:** `MyDrive/hpml_sched/analysis/early_stop_sensitivity.json` (all 81 settings, per cell, condition and
+  seed), `early_stop_sensitivity.log` and `early_stop_sensitivity_pip_freeze.txt` (math-verify 0.9.0, Python 3.13).
