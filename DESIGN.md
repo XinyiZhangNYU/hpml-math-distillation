@@ -521,6 +521,64 @@ counted.
   pip freeze one level up. `ext/wait_go.json` there is a copy from an earlier sync (the copy to Drive does not
   delete files).
 
+### 11.4 Training: sequence packing and fused linear-attention kernels (timing only; frozen 2026-11-05, before any run)
+
+Question: how much LoRA training time (§8, §11.2) does packing save, compared with the padded microbatches of §8,
+and what do the fused linear-attention kernels contribute? This study measures time only. No adapter from this
+study is evaluated, and nothing in §8–§10 changes.
+
+**Why kernels are part of the question.** Qwen3.5-9B mixes full-attention layers and gated delta net
+(linear-attention) layers. In the §8 stack the linear-attention layers ran on the PyTorch fallbacks of
+transformers 5.17.0, because `causal_conv1d` and `fla` were not installed. Those fallbacks treat a row as a
+single sequence. When several examples are packed into one row, the recurrent state and the short causal
+convolution taps would carry over from one example into the next. Packing without leakage needs kernels that
+take sequence boundaries: `cu_seqlens` for the chunked delta rule, boundary-aware causal convolution, and
+variable-length flash attention in the full-attention layers. These kernels are also faster in their own
+right. A third arm separates the two effects.
+
+- **Arms** (same data, step plan, seeds, LoRA setting and loss as §8; one A100 40GB; one Colab session):
+
+  | Arm | Linear-attention and attention kernels | Microbatches |
+  |---|---|---|
+  | R | §8 stack as recorded (PyTorch fallbacks) | §8: length-sorted, right padding, at most 32,768 padded tokens |
+  | F | fused kernels (`fla` delta rule, `causal_conv1d`, flash attention), from the transformers kernel hub or pip, versions and sources recorded | as R |
+  | P | as F | packed: the examples of a step, longest first, first-fit into rows of at most 32,768 tokens, one row per forward pass; positions restart at 0 for each example and the boundaries are passed to every layer |
+
+  All three arms run the same 124 optimizer steps on the same 16 questions per step, with the same loss: the
+  mean over all supervised tokens of the step. Only the grouping into forward passes and the kernels change.
+- **Workload:** epoch 1, seed 1 (LoRA init 91432026, question order 20261021), learning rate 2e-4, for group 2
+  (human solutions: the most padding, 0.78 real/padded) and group 3 (raw traces: the most tokens, 0.91).
+  Order: group 2 R, F, P, then group 3 R, F, P.
+- **Gates before any timed run** (F and P stack; failures are reported, not worked around by changing the design):
+  1. *Kernels in use:* the run records which implementation of each linear-attention function and of the
+     attention ran. If a fallback ran, F and P do not start.
+  2. *Same function:* on the four check sequences of §8, the summed target NLL of the untrained model under F is
+     within 1% (relative) of R.
+  3. *Isolation:* on the packed rows of the first four steps of group 3, the summed NLL of every example in its
+     packed row is within 1% (relative) of the same example run alone. As a control, the same check with the
+     R stack and no boundaries is expected to fail, which shows that the check detects leakage.
+
+  If gate 1 or 2 fails, only R runs. If gate 3 fails, R and F run and P is reported as not achieved in this
+  stack. Code fixes that keep the arms, workload and measures unchanged are allowed and recorded.
+- **Primary result per group:** training seconds of the epoch (sum of step times, model loading excluded) and
+  real tokens per second, with the ratios R/F (kernels) and F/P (packing).
+- **Expected direction (stated before the runs):** P is faster than F, more for group 2 than for group 3. If
+  padding were the only cost, the bound is the padded/real ratio, 1.28 for group 2 and 1.10 for group 3; fewer
+  forward passes can add to it. R/F is expected above 1. Its size is not predicted.
+- **Secondary and sanity checks:** forward passes and processed tokens per epoch, peak PyTorch and device memory,
+  median step-time ratio after the first 5 steps, and per-step loss differences between arms (the first step
+  should agree closely; later steps may drift through numerics). R is compared with the seed-1 record of the
+  final run (`train_report.json`). A difference above 10% is reported as a session effect; all ratios use
+  this session's runs only.
+- **Balance rule:** the Colab balance is read before each arm. Below 8 units the session stops, and the
+  remaining arms are reported as not run. The order is not changed after any result is seen.
+- **Not claimed:** the accuracy of adapters trained with packing or fused kernels (not evaluated); more than one
+  epoch; other groups, GPUs or models. With one run per arm there are no intervals; the per-step times give the
+  spread within a run.
+- **Estimated cost:** R takes about 4.5 min (group 2) and 16 min (group 3) of training, as in §11.2. F and P
+  should take less. With six model loads, the kernel setup and the gates, the total is about 1.5–2 A100-hours,
+  or about 10–14 compute units at about 6.7 units per hour.
+
 ## 12. Exploratory: loop early stop (offline, chosen after the results)
 
 `training/early_stop_estimate.py` applies a loop rule to the saved outputs of conditions 2–4 (all seeds and tiers):
