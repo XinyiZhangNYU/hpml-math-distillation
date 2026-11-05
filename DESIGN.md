@@ -424,6 +424,48 @@ The ten evaluations took 32.2 h of job time, about 20 times the training time, s
 this study. Condition 4 generates 19% fewer tokens than condition 3 and needs 22% less generation time; it is also
 less accurate (§10).
 
+### 11.3 Extension: workload size, slot count and a second model (frozen 2026-11-04, before any run)
+
+Question: does the §11.1 gain of the queue over fixed groups hold for a larger workload, for other slot counts, and
+for a model with a different output length distribution? Same scripts, extended with the workload size, the slot
+count and the list of runs as arguments; one Colab A100 40GB; engine settings of §11 except `max_num_seqs`, which
+equals the slot count. Nothing else changes: chat prompt, sampling, request seed rule, budget 32,768 + 2,048.
+
+- **Second model:** the merged condition 4 / seed 1 model (the loss check of §9 must pass first). It has the same base
+  model and size as condition 3, and in the final evaluation it generated 19% fewer tokens (§11.2) and looped in a
+  larger share of its truncated outputs (§10.1), so only the output length distribution changes.
+- **Workloads:** MATH dev 100 × k samples in the order of §11, k = 2 (200 requests, as §11) or k = 6 (600 requests;
+  the first 200 are the requests of §11).
+- **Cells,** each with one fixed and one queue run (fixed group size = slot count):
+
+  | Cell | Model | Requests | Slots | First run |
+  |---|---|---|---|---|
+  | 1 | condition 3 | 600 | 64 | fixed |
+  | 2 | condition 3 | 200 | 32 | queue |
+  | 3 | condition 3 | 200 | 128 | fixed |
+  | 4 | condition 4 | 200 | 64 | queue |
+  | 5 | condition 4 | 600 | 64 | fixed |
+
+  One run per mode: in §11.1 two runs of the same mode differed by less than 0.05%. The first mode alternates over
+  the cells. Engines start in the order of the cells (condition 3 at 64, 32 and 128 slots, then condition 4 at 64),
+  each with the warm-up check of §11. Before each cell starts, the Colab compute unit balance is read; below 12 units
+  the session stops and the remaining cells are reported as not run. The order is not changed after any result is
+  seen.
+- **Primary result per cell:** generated tokens per second of generation wall time, queue over fixed, and the wall
+  time of the workload in each mode, set next to the §11.1 values (2.05 and 2.63). With one run per mode there is no
+  interval; differences between cells are described, not tested.
+- **Expected direction (stated before the runs):** at 600 requests the ratio is larger than at 200, because every
+  fixed group still waits for its longest output while the queue's final tail is shared by three times the work.
+  At 128 slots, 128 × 34,816 tokens exceed the KV cache of 389,535 tokens, so preemptions may occur; they are
+  counted and reported, not avoided.
+- **Secondary and sanity checks:** as in §11 (finish times, busy slot share, group times and longest outputs, peak
+  running requests and resident tokens against the KV cache, preemptions, GPU memory; accuracy and truncation per
+  run).
+- **Not claimed:** other GPUs, budgets or models; fixed group sizes other than the slot count; mixed workloads.
+- **Estimated cost:** about 6 A100-hours (cells 1 and 5 about 1.5–2 h each, the other cells 0.5–1 h each, plus four
+  engine starts and one merge), about 35 compute units at about 5.3 units per hour; the balance was 48.41 units
+  before the run.
+
 ## 12. Exploratory: loop early stop (offline, chosen after the results)
 
 `training/early_stop_estimate.py` applies a loop rule to the saved outputs of conditions 2–4 (all seeds and tiers):
