@@ -234,6 +234,8 @@ DESIGN.md §8–§9.
 | `sched_bench.py` | The scheduling benchmark of DESIGN.md §11: fixed groups of 64 requests versus a continuously refilled queue on one vLLM engine, MATH dev 100 × 2 samples, at 32k and 8k tokens. Records throughput, per-request first-token and finish times, slot use, resident tokens, preemptions and GPU memory, and checks accuracy. |
 | `lora_cost.py` | LoRA training and evaluation cost from the records of the final run (time, tokens per second, peak memory). CPU only. |
 | `early_stop_estimate.py` | Offline, exploratory estimate of a loop early-stop rule on the saved final outputs (DESIGN.md §12). CPU only. |
+| `early_stop_sensitivity.py` | Offline, exploratory sensitivity of that rule over an 81-setting parameter grid, and a setting chosen on seed 1 checked on seeds 2 and 3 (DESIGN.md §12.1). CPU only. |
+| `colab_sens_cell.py` | Colab CPU cell that checks and runs `early_stop_sensitivity.py` over the final outputs on Drive. |
 | `run_sched.py` | Runs `lora_cost.py`, `early_stop_estimate.py`, the merge of the condition 3 / seed 1 adapter and `sched_bench.py`, skipping finished jobs, and copies the results to Drive after every job. |
 | `colab_sched_cell.py` | One Colab cell that checks the scripts by SHA-256, starts `run_sched.py` in the background and follows its log. Needs Google Drive mounted with the final run in `MyDrive/hpml_final`. |
 
