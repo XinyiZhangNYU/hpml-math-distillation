@@ -550,3 +550,37 @@ with and without it in every cell. Condition 2 loops early and often, so the rul
 tokens. Conditions 3 and 4 mostly run out of budget while still reasoning; the rule catches 34–73% of their
 truncated outputs per cell, late, and would save 8–22% of their tokens. These are token estimates: generation time,
 and what the freed slots would do under the queue of §11, were not measured.
+
+### 12.1 Sensitivity and seed split of the loop rule (frozen 2026-11-05, before any run; still exploratory)
+
+Question: is the §12 result a property of the one parameter setting picked after the results, or does it hold
+around it, and does a setting chosen on one seed carry over to the other two? Script:
+`training/early_stop_sensitivity.py` on a Colab CPU runtime (cell `training/colab_sens_cell.py`), over the same saved
+outputs as §12 (conditions 2–4, 3 seeds, 3 tiers, read-only from `MyDrive/hpml_final/evals`); the result is
+`early_stop_sensitivity.json` next to `early_stop_estimate.json` in `MyDrive/hpml_sched/analysis`. Nothing is
+generated, no GPU and no API is used, and the rule, the §9 grading of the stopped prefix and the token estimate are
+those of §12.
+
+- **Grid:** each of the four parameters at half, the §12 value and double: probe 150 / 300 / 600 characters, minimum
+  loop 750 / 1,500 / 3,000 characters, check every 500 / 1,000 / 2,000 characters, maximum period 10,000 / 20,000 /
+  40,000 characters; all 81 combinations.
+- **Reproduction check, first:** the §12 setting must reproduce `early_stop_estimate.json` in every cell (outputs,
+  stops, accuracy with the rule, tokens saved). If it does not, nothing else is reported until the difference is
+  explained.
+- **Per setting**, per cell and per condition (tiers pooled by tokens): outputs stopped; stops of outputs that had
+  finished; grade changes (correct to wrong, and wrong to correct, counted apart); share of generated tokens saved;
+  share of truncated outputs stopped.
+- **Sensitivity reading (fixed now):** the §12 setting is called stable if each of its 8 one-step neighbours (one
+  parameter halved or doubled) has no grade change, no stop of a finished output and, in every condition, a saved
+  share within 5 percentage points of the §12 setting. The change relative to the §12 share is reported next to
+  each difference. Otherwise the parameters that break it are named. The whole grid is reported either way.
+- **Seed split:** a setting is chosen on seed 1 alone: the largest share of tokens saved over conditions 2–4 and all
+  tiers, among the settings with no grade change and no stop of a finished output on seed 1. Ties go to the more
+  cautious setting (larger minimum loop, then larger probe, then larger check interval, then smaller maximum period).
+  On seeds 2 and 3, each on its own, it is then reported against the §12 setting: grade changes, stops of finished
+  outputs, and tokens saved per condition. The choice is said to carry over if each of seeds 2 and 3 has no grade
+  change, no stop of a finished output, and in each condition a saved share within 5 percentage points of its seed-1
+  value (relative change reported alongside).
+- **Limits:** the three seeds share their problems and training data, so the split tests stability across training
+  seed and sampling, not across problems. Both parts stay exploratory: the §12 setting itself was chosen after
+  seeing all three seeds. Tokens are estimated from characters as in §12, and time is not measured.
