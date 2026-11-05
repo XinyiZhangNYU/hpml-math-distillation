@@ -466,6 +466,61 @@ equals the slot count. Nothing else changes: chat prompt, sampling, request seed
   engine starts and one merge), about 35 compute units at about 5.3 units per hour; the balance was 48.41 units
   before the run.
 
+#### Results (run 2026-11-05, 03:00–09:41 UTC; all five cells ran)
+
+Balance read before each cell: 47.61, 34.14, 26.30, 21.25 and 16.20 units, so every cell ran. Each engine passed
+the loss check (largest relative difference 0.0064, 0.0023 and 0.0024 for condition 3 at 64, 32 and 128 slots;
+0.0186 for condition 4) and the warm-up check (8 of 8 texts identical). Engine starts took 190–322 s; they are not
+counted.
+
+| Cell | Model | Requests | Slots | Tokens/s, queue / fixed | Wall, fixed / queue |
+|---|---|---|---|---|---|
+| §11.1 | condition 3 | 200 | 64 | 2.05 | 2.63 |
+| 1 | condition 3 | 600 | 64 | 3.17 | 3.39 |
+| 2 | condition 3 | 200 | 32 | 3.15 | 4.48 |
+| 3 | condition 3 | 200 | 128 | 1.50 | 1.81 |
+| 4 | condition 4 | 200 | 64 | 2.12 | 2.60 |
+| 5 | condition 4 | 600 | 64 | 3.26 | 3.81 |
+
+| Run | Wall (s) | Output tokens | Tokens/s | Busy slot share | Finish p50 / p90 / max (s) | Truncated | Accuracy | Preemptions |
+|---|---|---|---|---|---|---|---|---|
+| 1 fixed | 4,902.4 | 1,446,094 | 295.0 | 0.079 | 2,160.2 / 4,228.1 / 4,902.4 | 24 | 0.907 | 0 |
+| 1 queue | 1,446.3 | 1,353,499 | 935.8 | 0.425 | 102.7 / 270.0 / 1,446.3 | 19 | 0.918 | 32 |
+| 2 queue | 709.1 | 466,424 | 657.8 | 0.397 | 44.7 / 103.6 / 709.1 | 8 | 0.890 | 0 |
+| 2 fixed | 3,177.2 | 663,252 | 208.8 | 0.104 | 1,519.8 / 2,583.5 / 3,177.2 | 14 | 0.875 | 0 |
+| 3 fixed | 1,143.5 | 506,697 | 443.1 | 0.065 | 24.7 / 620.9 / 1,143.5 | 9 | 0.895 | 0 |
+| 3 queue | 632.1 | 419,435 | 663.6 | 0.113 | 19.0 / 70.6 / 632.1 | 7 | 0.910 | 0 |
+| 4 queue | 637.8 | 402,421 | 631.0 | 0.196 | 24.5 / 61.3 / 637.8 | 7 | 0.890 | 0 |
+| 4 fixed | 1,656.8 | 493,941 | 298.1 | 0.080 | 522.3 / 1,111.6 / 1,656.8 | 11 | 0.890 | 0 |
+| 5 fixed | 5,328.1 | 1,456,956 | 273.4 | 0.073 | 2,188.8 / 4,312.8 / 5,328.1 | 29 | 0.897 | 0 |
+| 5 queue | 1,398.0 | 1,244,562 | 890.2 | 0.405 | 81.5 / 195.1 / 1,398.0 | 21 | 0.895 | 31 |
+
+- **Workload size:** at 600 requests the queue's gain is larger than at 200, as expected: 3.17 (condition 3) and
+  3.26 (condition 4) times the tokens per second, against 2.05 and 2.12 at 200. Fixed groups stay near 0.08 busy
+  slot share at both sizes, while the queue's share rises from 0.20 to 0.40–0.43 because the final tail of a few long
+  outputs is shared by three times the work.
+- **Slot count:** the gain falls as the slot count rises: 3.15 at 32 slots, 2.05 at 64, 1.50 at 128. With 128 slots
+  the 200 requests form only two fixed groups (128 and 72), so fixed mode waits for a long output twice instead of
+  seven times at 32 slots; the queue's wall time barely changes (709, 642 and 632 s) because it is set by the
+  longest single output.
+- **Second model:** condition 4 at 200 requests and 64 slots gives 2.12 and 2.60, within 4% of condition 3 (2.05 and
+  2.63). Its shorter outputs did not change the ratio at this size; at 600 requests it gave a slightly larger
+  ratio than condition 3 (3.26 against 3.17).
+- **Preemptions** occurred only in the two 600-request queue runs (32 and 31), not at 128 slots as anticipated. In a
+  long queue, long outputs accumulate: the prompt and generated tokens of the started, unfinished requests peaked at
+  533,615 and 582,492, above the cache capacity of 389,535 tokens. This count includes preempted requests, so it is
+  not the cache occupancy. At 128 slots the peak was 197,104 (fixed) and 229,507 (queue). The tokens per second of
+  the queue include the recomputation after preemption.
+- **Same work?** As in §11.1, the modes produce different outputs (32.5–39.0% identical per cell), and fixed mode
+  generated 1.07–1.42 times as many tokens. Accuracy differs by at most 1.5 points between the modes of a cell,
+  within sampling noise. With one run per mode, the differences between cells are described, not tested.
+- **Cost:** about 6.7 A100-hours and 45.4 compute units (48.17 before, 2.74 after; about 6.7 units per hour), above
+  the estimate of 35 because the usage rate was higher than 5.3.
+- **Records:** `MyDrive/hpml_sched_ext/ext/cellN/cell_summary.json` and `runs/` (per run: statistics with the
+  once-a-second trace, and all outputs), the four `engine_*.json` files, the five answers in `go/`, and the logs and
+  pip freeze one level up. `ext/wait_go.json` there is a copy from an earlier sync (the copy to Drive does not
+  delete files).
+
 ## 12. Exploratory: loop early stop (offline, chosen after the results)
 
 `training/early_stop_estimate.py` applies a loop rule to the saved outputs of conditions 2–4 (all seeds and tiers):
