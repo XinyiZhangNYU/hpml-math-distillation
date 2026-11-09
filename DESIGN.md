@@ -745,3 +745,20 @@ those of §12.
   samples, and varies between seeds by more than between parameter settings. All of this stays exploratory (see Limits).
 - **Records:** `MyDrive/hpml_sched/analysis/early_stop_sensitivity.json` (all 81 settings, per cell, condition and
   seed), `early_stop_sensitivity.log` and `early_stop_sensitivity_pip_freeze.txt` (math-verify 0.9.0, Python 3.13).
+
+## 13. Demo: the four conditions side by side (saved outputs, fixed selection)
+
+The demo replays saved outputs of the final run (§9); nothing is generated. Script: `demo/demo_extract.py` on a Colab
+CPU runtime (cell `demo/colab_demo_cell.py`), reading `MyDrive/hpml_final/evals` (outputs checked against their
+SHA-256) and writing `MyDrive/hpml_demo/demo_data.json`.
+
+- **Selection, fixed before any output is read:** in each tier the scored problem ids are sorted, and
+  `random.Random(20261109 + tier number).sample()` draws 4 (tier 1), 4 (tier 2) and 2 (tier 3). No draw is replaced.
+- **Outputs shown:** sample 0 of each condition: condition 1 from its one run, conditions 2–4 from training seed 1.
+  The request seed of an item and sample is the same for every model (§9).
+- **Shown next to each output:** tokens, finish reason, grade (§9), and for conditions 2–4 the point where the §12
+  loop rule would stop it, with the grade of the stopped prefix. Each problem also shows its accuracy per condition
+  over all seeds and samples, so a single sample can be read against the rate.
+- **Playback:** the four texts are revealed at one constant rate in tokens, proportional to each output's length. This
+  is not the recorded generation timing, which was not kept per output.
+- **Not claimed:** the drawn problems illustrate the outputs; the results are those of §10.
