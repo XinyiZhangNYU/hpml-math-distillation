@@ -762,3 +762,63 @@ SHA-256) and writing `MyDrive/hpml_demo/demo_data.json`.
 - **Playback:** the four texts are revealed at one constant rate in tokens, proportional to each output's length. This
   is not the recorded generation timing, which was not kept per output.
 - **Not claimed:** the drawn problems illustrate the outputs; the results are those of §10.
+
+## 14. Online loop early stop in vLLM (frozen 2026-11-09, before any run; the rule stays exploratory)
+
+Question: when the §12 loop rule runs inside generation and a stopped request gives its slot back at once, how many
+generated tokens and how much wall time does it save on a workload where loops occur, and does the token saving
+match the offline estimate of §12? Script: `training/loopstop_bench.py`, run by `training/run_loopstop.py` from the
+cell `training/colab_loopstop_cell.py` on one Colab A100 40GB. No training and no API calls.
+
+- **Models:** the merged condition 4 / seed 1 model, then the merged condition 3 / seed 1 model (the adapters of the
+  final run; the loss check of §9 must pass first). Condition 4 goes first because §12 expects the larger saving for
+  it (20.8% of tier 2 tokens, against 10.5% for condition 3).
+- **Workload:** tier 2 (63 problems, AIME 2026 and HMMT February 2026) × samples 0 and 1 = 126 requests, in the order
+  of the final evaluation (every problem for sample 0, then for sample 1), with its chat prompt, sampling and request
+  seeds (91432026 + 2,000,000 + item index + 100,000 × sample) and the budget of 32,768 tokens. Tier 2 is used
+  because the loops are there (§10.1); this is a timing measurement, and its grades do not replace §10.
+- **Engine:** as in §11.3 at 64 slots (`max_num_seqs` 64, 2,048-token prefill chunks, 0.80 GPU memory, no prefix
+  caching, CUDA graphs); queue mode: all 126 requests are submitted at once through `add_request()` and the engine is
+  driven by `step()`, as in §11.
+- **Runs, one per mode and model:** *off*, no check; *on*, the §12 rule checked during generation. Order: condition 4
+  off then on; condition 3 on then off.
+- **Online check:** after every engine step, each request whose text has passed one or more multiples of 1,000
+  characters since its last check is checked at each passed point L in order, with `early_stop_estimate.loops()` on
+  the text up to L, so the points checked are those of `stop_point()`. In the *on* run, the first point that fires
+  stops the request: it is aborted (`abort_request()`), its slot is free at the next step, its output is the text up
+  to L (graded under §9) and its tokens are the tokens generated
+  until the abort. In the *off* run the same check runs and only records where it would have stopped and how many
+  tokens had been generated then.
+- **Gates, in this order; a failed gate stops that model's runs:**
+  1. *Checker check* (CPU, after the merge, before the engine loads): on the saved final-run outputs of the same
+     model, items and samples, the online checker fed in chunks of 1 to 20 characters (`random.Random(20261109)`)
+     stops at the same point as `stop_point()` for every output.
+  2. *Balance:* the Colab compute unit balance is read by hand; below 12 units the session stops and the remaining
+     runs are reported as not run.
+  3. The loss check and the warm-up check of §11 (8 short requests, step loop against `LLM.generate()`).
+  4. *Abort check:* 8 requests of at most 256 tokens; requests 0–3 are aborted once they have 32 tokens. The aborted
+     requests give no output after the abort, requests 4–7 finish, and the engine has no unfinished request at the end.
+- **Prediction, stated before the runs and computed before the engine loads:** `stop_point()` on the saved
+  final-run outputs of these 126 items and samples gives the expected number of stops and share of tokens saved
+  (characters converted to tokens as in §12). This number is written to the results before any generation.
+- **Primary results per model:** generated tokens, on / off; generation wall time, on / off; next to the prediction.
+  The *off* run also gives an exact token count of what the check would have saved on the same outputs (the tokens
+  generated after the recorded stop point).
+- **Expected direction (stated before the runs):** tokens saved close to the prediction, since the rule and the
+  model are those of §12. Wall time saved less than tokens, possibly little: the queue ends when its longest outputs
+  end, and most tier 2 truncations of condition 3 (47%) and many of condition 4 (30%) show no repetition (§10.1), so
+  unstopped requests still run to 32,768 tokens. Freed slots help only while requests are waiting (126 requests, 64
+  slots). Tokens per second are not expected to change much.
+- **Secondary and sanity checks:** stops in the *on* run and their token positions; in the *off* run, stops that would
+  have hit an output that later finished, and grades the stop would have changed; finish times, busy slot share,
+  preemptions, peak resident tokens, GPU memory (as §11); truncated outputs and accuracy over the scored items
+  (2 samples per problem, a sanity check only). The two runs batch differently, so their outputs differ after some
+  point (§11.3); the share of identical outputs between *off* and *on* (among requests not stopped) and between *off*
+  and the saved final-run outputs is reported.
+- **Not claimed:** other workloads, slot counts, budgets or models; any effect on accuracy; the rule as a tuned
+  setting (it was chosen after the results, §12). One run per mode, so differences are described, not tested.
+- **Estimated cost:** about 3 A100-hours (generation about 31 + 25 min for condition 4 and 40 + 36 min for
+  condition 3 at about 1,000 tokens/s, plus two merges, two engine starts and the virtual environment), about 20–25
+  compute units at 6.7–8 units per hour.
+- **Records:** `MyDrive/hpml_loopstop`: per model `cN/prediction.json`, `cN/gates.json`, `cN/runs/NAME.json` and
+  `NAME.outputs.jsonl.gz`, `cN/model_summary.json`; logs and pip freeze one level up.
