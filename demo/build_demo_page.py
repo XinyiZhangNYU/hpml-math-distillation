@@ -61,6 +61,7 @@ TEMPLATE = r'''<meta charset="utf-8">
   --c1: #9aa6b4; --c2: #d9a54a; --c3: #4cb8ae; --c4: #a28ce0;
   --ok: #5cc28a; --bad: #ec7a68; --warn: #e0b04a; --mark: #3e3518; --after: #6f747b; color-scheme: dark }
 * { box-sizing: border-box }
+[hidden] { display: none !important }
 body { background: var(--bg); color: var(--ink); font: 15px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
 .wrap { max-width: 1680px; margin: 0 auto; padding-block: 20px 40px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -76,7 +77,7 @@ h1 { font-size: 1.45rem; margin: 0; font-weight: 600; text-wrap: balance }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0 }
 .problem { display: grid; gap: 8px }
-.ptext { white-space: pre-wrap; font-size: 1rem; max-width: 110ch; overflow-wrap: anywhere }
+.ptext { font-size: 1rem; max-width: 110ch; overflow-wrap: anywhere }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .88rem; color: var(--muted) }
 .meta b { color: var(--ink); font-weight: 500; font-family: "IBM Plex Mono", ui-monospace, monospace }
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center }
@@ -101,9 +102,16 @@ input[type=range] { width: 100%; accent-color: var(--ink) }
 .badge { font-weight: 600; border-radius: 5px; padding: 1px 7px; font-size: .78rem }
 .b-ok { color: var(--ok); border: 1px solid var(--ok) } .b-bad { color: var(--bad); border: 1px solid var(--bad) }
 .b-warn { color: var(--warn); border: 1px solid var(--warn) } .b-run { color: var(--muted); border: 1px dashed var(--line) }
-.text { font: .78rem/1.45 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+.text { font: .86rem/1.55 "IBM Plex Sans", system-ui, sans-serif; overflow-wrap: anywhere;
   padding: 10px 12px; height: 56vh; min-height: 260px; overflow-y: auto; margin: 0 }
+.text p, .ptext p { margin: 0 0 .6em }
+.text p.tail { white-space: pre-line }
 .text .after { color: var(--after) }
+.dmath { display: block; overflow-x: auto; overflow-y: hidden; margin: .35em 0; text-align: center; scrollbar-width: thin }
+.dmath mjx-container { margin: 0 !important }
+.imath, .dmath { color: inherit }
+.tag { display: block; font: 600 .7rem "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 2px; margin: .2em 0 .6em }
 .text .stopmark { display: block; background: var(--mark); color: var(--ink); font-family: "IBM Plex Sans", sans-serif;
   font-size: .8rem; padding: 4px 8px; margin: 6px 0; border-left: 3px solid var(--warn) }
 .foot { display: grid; gap: 10px; font-size: .86rem; color: var(--muted) }
@@ -141,6 +149,9 @@ td.num { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--ink
   </section>
 </div>
 <script type="application/json" id="data">__DATA__</script>
+<script>window.MathJax = {startup: {typeset: false, pageReady() { if (window.__mathReady) window.__mathReady(); }},
+  svg: {fontCache: 'local'}};</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
 <script>
 (() => {
   const D = JSON.parse(document.getElementById('data').textContent);
@@ -179,15 +190,87 @@ td.num { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--ink
     for (const v of D.headline[c]) { const x = document.createElement('td'); x.className = 'num'; x.textContent = v; tr.append(x); }
     ht.append(tr); }
 
+  // Formatted text: blank lines start paragraphs, LaTeX is drawn by MathJax (SVG) once it scrolls into view, and the
+  // think tags become labels. Model text only ever enters the page as text nodes or as TeX source for MathJax.
+  const MATH = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]{1,200}?\$)/;
+  let mathReady = false; const pendingMath = new Set();
+  const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) typeset(e.target); },
+                                      {rootMargin: '600px 0px'});
+  function typeset(el) {
+    if (el.dataset.done) return;
+    if (!mathReady) { pendingMath.add(el); return; }
+    el.dataset.done = '1'; io.unobserve(el); pendingMath.delete(el);
+    MathJax.tex2svgPromise(el.dataset.tex, {display: el.classList.contains('dmath')})
+      .then(svg => { el.textContent = ''; el.append(svg); }).catch(() => {});
+  }
+  window.__mathReady = () => {
+    mathReady = true;
+    try { document.head.append(MathJax.svgStylesheet()); } catch (e) {}
+    for (const el of [...pendingMath]) if (el.isConnected) typeset(el);
+  };
+  function words(s, p) {  // **bold** and markdown headings; newlines inside a paragraph become line breaks
+    s.split('\n').forEach((line, i) => {
+      if (i) p.append(document.createElement('br'));
+      const h = /^#{1,6}\s+/.exec(line); if (h) line = line.slice(h[0].length);
+      const box = h ? p.appendChild(document.createElement('strong')) : p;
+      line.split(/(\*\*[^*\n]+\*\*)/).forEach((b, j) => {
+        if (j % 2) box.appendChild(document.createElement('strong')).textContent = b.slice(2, -2);
+        else if (b) box.append(document.createTextNode(b));
+      });
+    });
+  }
+  function inline(s, p) {
+    const bits = s.split(MATH), disp = b => b.startsWith('$$') || b.startsWith('\\[');
+    bits.forEach((b, i) => {
+      if (i % 2) {
+        const d = disp(b), m = document.createElement('span');
+        m.className = d ? 'dmath' : 'imath'; m.dataset.tex = b.startsWith('$') && !d ? b.slice(1, -1) : b.slice(2, -2);
+        m.textContent = b; p.append(m); io.observe(m);
+      } else {
+        if (i > 0 && disp(bits[i - 1])) b = b.replace(/^[ \t]*\n/, '');
+        if (i + 1 < bits.length && disp(bits[i + 1])) b = b.replace(/\n[ \t]*$/, '');
+        if (b) words(b, p);
+      }
+    });
+  }
+  function blocks(s, parent) {
+    for (const seg of s.split(/(<\/?think>)/)) {
+      if (seg === '<think>' || seg === '</think>') {
+        parent.appendChild(document.createElement('div')).className = 'tag';
+        parent.lastChild.textContent = seg === '<think>' ? 'Reasoning' : 'Answer'; continue; }
+      const t = seg.replace(/^\n+|\n+$/g, ''); if (!t.trim()) continue;
+      const p = parent.appendChild(document.createElement('p')); inline(t, p);
+    }
+  }
+  // A flow shows src[start:end]: finished paragraphs are formatted once, the paragraph being written is plain text.
+  function flowSet(f, src, start, end, final) {
+    if (f.src !== src || f.start !== start || end < f.end) {
+      f.el.textContent = ''; f.src = src; f.start = start; f.end = f.done = start; f.tail = null; }
+    if (end === f.end && !(final && f.tail)) return;
+    const cut = final ? end : src.lastIndexOf('\n\n', end - 2);
+    if (cut >= f.done) {
+      if (f.tail) { f.tail.remove(); f.tail = null; }
+      for (const s of src.slice(f.done, cut).split(/\n{2,}/)) blocks(s, f.el);
+      f.done = final ? end : cut + 2;
+    }
+    const rest = src.slice(f.done, end).replace(/<\/?think>/g, '');
+    if (rest.trim()) {
+      if (!f.tail) { f.tail = f.el.appendChild(document.createElement('p')); f.tail.className = 'tail'; }
+      f.tail.textContent = rest.replace(/^\n+/, '');
+    } else if (f.tail) { f.tail.remove(); f.tail = null; }
+    f.end = end;
+  }
+
   // panes
   const grid = $('grid'), panes = {};
   for (const c of ['1', '2', '3', '4']) {
     const el = document.createElement('article'); el.className = 'pane'; el.style.setProperty('--cc', `var(--c${c})`);
     el.innerHTML = `<div class="phead"><span class="pname">${c} · ${COND[c][0]}</span><span class="pdesc">${COND[c][1]}</span></div>
-      <div class="pstat"></div><pre class="text" tabindex="0"></pre>`;
-    const text = el.querySelector('.text');
+      <div class="pstat"></div><div class="text" tabindex="0"><div></div><span class="stopmark" hidden></span><div class="after"></div></div>`;
+    const text = el.querySelector('.text'), [fa, mark, fb] = text.children;
     text.addEventListener('scroll', () => { follow[c] = text.scrollTop + text.clientHeight >= text.scrollHeight - 30; });
-    grid.append(el); panes[c] = {el, stat: el.querySelector('.pstat'), text, shown: -1, mode: ''};
+    grid.append(el);
+    panes[c] = {el, stat: el.querySelector('.pstat'), text, mark, a: {el: fa}, b: {el: fb}, shown: -1, mode: ''};
   }
 
   const P = () => D.problems[cur];
@@ -201,7 +284,8 @@ td.num { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--ink
     box.innerHTML = '';
     const top = document.createElement('div'); top.className = 'meta';
     top.innerHTML = `<span class="label">${TIER[p.tier]}</span><span>${p.id}</span>`;
-    const txt = document.createElement('div'); txt.className = 'ptext'; txt.textContent = p.problem;
+    const txt = document.createElement('div'); txt.className = 'ptext';
+    for (const s of p.problem.split(/\n{2,}/)) blocks(s, txt);
     const m = document.createElement('div'); m.className = 'meta';
     const gold = document.createElement('span'); gold.innerHTML = 'Reference answer: <b></b>'; gold.querySelector('b').textContent = p.gold;
     m.append(gold);
@@ -221,20 +305,20 @@ td.num { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--ink
     for (const c of ['1', '2', '3', '4']) {
       const o = p.outputs[c], pane = panes[c], end = endTok(o);
       const t = Math.min(clock, end), done = clock >= end;
-      const chars = t >= o.tokens ? o.chars : Math.floor(t * o.chars / Math.max(1, o.tokens));
       const L = o.loop_stop ? o.loop_stop.chars : null;
+      let chars = t >= o.tokens ? o.chars : Math.floor(t * o.chars / Math.max(1, o.tokens));
+      if (L !== null && t >= o.loop_stop.tokens_est) chars = Math.max(chars, L);  // the token estimate is proportional
       const mode = `${useRule}|${done}`;
       if (chars !== pane.shown || mode !== pane.mode) {
-        const pre = pane.text; pre.textContent = '';
-        if (L !== null && chars > L) {
-          pre.append(document.createTextNode(o.text.slice(0, L)));
-          const mk = document.createElement('span'); mk.className = 'stopmark';
-          mk.textContent = `Loop rule fires here, about ${fmt(o.loop_stop.tokens_est)} tokens in`
+        const split = L !== null && chars >= L;
+        pane.mark.hidden = !split;
+        if (split) {
+          pane.mark.textContent = `Loop rule fires here, about ${fmt(o.loop_stop.tokens_est)} tokens in`
             + (useRule ? '; generation stops.' : '; the output continued below.');
-          pre.append(mk);
-          if (!useRule) { const a = document.createElement('span'); a.className = 'after'; a.textContent = o.text.slice(L, chars); pre.append(a); }
-        } else pre.append(document.createTextNode(o.text.slice(0, chars)));
-        if (follow[c] !== false) pre.scrollTop = pre.scrollHeight;
+          flowSet(pane.a, o.text, 0, L, true);
+          if (useRule) flowSet(pane.b, '', 0, 0, false); else flowSet(pane.b, o.text, L, chars, chars >= o.chars);
+        } else { flowSet(pane.a, o.text, 0, chars, chars >= o.chars); flowSet(pane.b, '', 0, 0, false); }
+        if (follow[c] !== false) pane.text.scrollTop = pane.text.scrollHeight;
         pane.shown = chars; pane.mode = mode;
         let s = `<span class="tok">${fmt(t)} / ${fmt(o.tokens)} tok</span>`;
         if (!done) s += badge('b-run', 'generating');
