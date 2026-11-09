@@ -579,6 +579,62 @@ right. A third arm separates the two effects.
   should take less. With six model loads, the kernel setup and the gates, the total is about 1.5–2 A100-hours,
   or about 10–14 compute units at about 6.7 units per hour.
 
+#### Results (run 2026-11-09, 08:54–10:50 UTC, one A100-SXM4-40GB; all six arms ran)
+
+Balance read before each arm: 95.57, 95.01, 93.87, 92.77, 89.96 and 88.27 units, so every arm ran in the frozen
+order. No code was changed after the freeze.
+
+- **Stack:** flash-linear-attention and fla-core 0.6.0 and causal-conv1d 1.7.0 from pip (causal-conv1d built
+  against torch 2.11.0 with the §8 pins held; the kernel hub was not used), triton 3.6.0. The fused environment
+  took 1,051 s to set up and the §8 environment 83 s; neither is counted.
+- **Gate 1 (kernels in use): passed.** One forward pass of the fused stack called the fla chunked delta rule 24
+  times, the boundary-aware causal convolution 24 times and the per-segment flash attention 8 times, matching the
+  layer counts, with no fallback warning. The §8 stack logged the `causal_conv1d` fallback warning, as recorded
+  in §8.
+- **Gate 2 (same function): passed.** On the four check sequences the summed target NLL under the fused stack was
+  within 0.046%, 0.107%, 0.161% and 0.062% of the §8 stack.
+- **Gate 3 (isolation): passed.** On the packed rows of the first four steps of group 3, the largest relative
+  difference between an example in its packed row and the same example alone was 0.46%. The control (§8 stack,
+  no boundaries) reached 62%, so the check detects leakage.
+
+| Group | Arm | Training s | Real tokens/s | Forward passes | Processed tokens | Peak PyTorch / device GiB | Load s | Mean loss |
+|---|---|---|---|---|---|---|---|---|
+| 2 | R | 384.9 | 1,588 | 314 | 784,513 | 19.8 / 21.8 | 25.7 | 0.53768 |
+| 2 | F | 400.8 | 1,526 | 314 | 784,513 | 19.9 / 28.6 | 45.1 | 0.53771 |
+| 2 | P | 346.1 | 1,767 | 124 | 611,428 | 20.3 / 32.0 | 45.1 | 0.53783 |
+| 3 | R | 828.8 | 2,920 | 563 | 2,652,705 | 24.2 / 25.9 | 26.3 | 0.75597 |
+| 3 | F | 796.2 | 3,040 | 563 | 2,652,705 | 24.0 / 32.3 | 45.7 | 0.75603 |
+| 3 | P | 837.2 | 2,891 | 131 | 2,420,158 | 26.4 / 36.7 | 45.4 | 0.75600 |
+
+Real tokens per epoch: 611,428 (group 2) and 2,420,158 (group 3). Device memory is sampled.
+
+| Group | R/F, epoch (median step after 5) | F/P, epoch (median step after 5) | R/P, epoch (median step after 5) |
+|---|---|---|---|
+| 2 | 0.960 (1.015) | 1.158 (1.381) | 1.112 (1.397) |
+| 3 | 1.041 (1.047) | 0.951 (1.130) | 0.990 (1.193) |
+
+- **Packing (F/P):** the expected direction held for group 2. Packing cut the forward passes from 314 to 124 and
+  the processed tokens by 22%, and F took 1.16 times as long as P, within the padding bound of 1.28. For group 3
+  it did not hold: the median step was 1.13 times faster, but the epoch was 5% slower. The gap between the
+  median and the total means that a minority of packed steps were much slower than the rest. This run does not
+  show why; the per-step times are in the reports.
+- **Kernels (R/F):** about no effect. F was 4% slower than R for group 2 and 4% faster for group 3, against an
+  expected ratio above 1. The fused stack also used 6.4–6.7 GiB more device memory while its PyTorch peak was the
+  same, and loading it took about 19 s longer.
+- **Same training:** the per-step losses agreed across arms: at most 0.0006 apart at the first step and 0.0041
+  at any step, and the epoch mean losses differ in the fourth decimal.
+- **Session effect:** R took 47% longer than the seed-1 record for group 2 (384.9 s against 261.5 s), above the
+  10% threshold, and 9% less for group 3 (828.8 s against 914.5 s). As frozen, all ratios use this session only.
+  R for group 2 was the first timed arm of the session.
+- **Not claimed:** as listed above. With one run per arm, the differences of 4–5% are within what a session can
+  vary, as the group-2 record comparison shows.
+- **Cost:** about 16.7 compute units (102.17 before, 85.48 after; about 6.7 units per hour), above the estimate of
+  10–14 because of the 17-minute build of the fused environment and the waits at the go prompts. This includes a
+  few minutes on an L4 runtime, assigned when no A100 was free, that the GPU check stopped before any work.
+- **Records:** `MyDrive/hpml_pack/pack_summary.json` and `.txt`, `gates/` (`ref.json`, `gate.json`),
+  `runs/g{2,3}_{R,F,P}/train_report.json` (per-step times and losses), the six answers in `go/`, and the logs and
+  pip freezes. `wait_go.json` and `current_job.json` there are copies from the last sync.
+
 ## 12. Exploratory: loop early stop (offline, chosen after the results)
 
 `training/early_stop_estimate.py` applies a loop rule to the saved outputs of conditions 2–4 (all seeds and tiers):
