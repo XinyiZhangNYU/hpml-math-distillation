@@ -770,6 +770,11 @@ generated tokens and how much wall time does it save on a workload where loops o
 match the offline estimate of §12? Script: `training/loopstop_bench.py`, run by `training/run_loopstop.py` from the
 cell `training/colab_loopstop_cell.py` on one Colab A100 40GB. No training and no API calls.
 
+Hardware note (2026-11-10, before the run): Colab assigned an A100 80GB (the cell checks only for an A100). The run
+goes ahead on it with every setting unchanged, including 0.80 GPU memory, so the KV cache is about twice the size it
+would be on 40GB. Off and on are compared on the same machine; preemption counts and resident tokens are not
+comparable with §11.3, which ran on 40GB.
+
 - **Models:** the merged condition 4 / seed 1 model, then the merged condition 3 / seed 1 model (the adapters of the
   final run; the loss check of §9 must pass first). Condition 4 goes first because §12 expects the larger saving for
   it (20.8% of tier 2 tokens, against 10.5% for condition 3).
