@@ -827,3 +827,43 @@ comparable with §11.3, which ran on 40GB.
   compute units at 6.7–8 units per hour.
 - **Records:** `MyDrive/hpml_loopstop`: per model `cN/prediction.json`, `cN/gates.json`, `cN/runs/NAME.json` and
   `NAME.outputs.jsonl.gz`, `cN/model_summary.json`; logs and pip freeze one level up.
+
+#### Results (run 2026-11-10, 11:28–13:36 UTC, one A100-SXM4-80GB; all four runs ran)
+
+The balance was read before each model and was above 12 units both times (78.03 before condition 4); the session
+used about 26 units. No code was changed after the freeze. Every gate passed for both models: the checker check
+(the online checker stopped where `stop_point()` stops on every saved output), the loss check (largest relative
+difference 0.018 for condition 4 and 0.0067 for condition 3), the warm-up check and the abort check. Both
+predictions were written before the engine loaded.
+
+| Model | Mode | Generation s | Output tokens | Tokens/s | Busy slot share | Finish p50 / p90 s | Truncated | Stops (on) / check fired (off) | Accuracy | Peak resident tokens | Preemptions |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Condition 4 | off | 1,497.3 | 1,998,389 | 1,334.7 | 0.736 | 358.7 / 1,373.2 | 46 | 22 | 0.333 | 1,375,140 | 1 |
+| Condition 4 | on | 1,241.3 | 1,699,813 | 1,369.4 | 0.639 | 292.3 / 1,087.0 | 21 | 34 | 0.357 | 820,524 | 0 |
+| Condition 3 | off | 1,800.4 | 2,243,337 | 1,246.0 | 0.748 | 582.8 / 1,591.2 | 50 | 18 | 0.405 | 1,453,678 | 7 |
+| Condition 3 | on | 1,445.3 | 1,974,975 | 1,366.5 | 0.706 | 445.9 / 1,301.9 | 32 | 17 | 0.429 | 1,039,203 | 0 |
+
+Generation time is the time from the first submission to the last finished request, so it equals the latest finish
+time. Accuracy is over the 126 requests and is a sanity check only (§14 makes no accuracy claim).
+
+| Model | Predicted stops | Predicted tokens saved | Exact saving on the *off* outputs | Measured tokens saved (on vs off) | Generation time saved (on vs off) | Tokens/s, on / off |
+|---|---:|---:|---:|---:|---:|---:|
+| Condition 4 | 33 | 26.0% (2,083,766 → 1,542,070) | 20.4% | 14.9% | 17.1% | 1.026 |
+| Condition 3 | 20 | 13.8% (2,365,857 → 2,040,282) | 11.8% | 12.0% | 19.7% | 1.097 |
+
+- **Tokens.** For condition 3 the measured saving (12.0%) is close to the prediction (13.8%). For condition 4 it is
+  well below it (14.9% against 26.0%).
+- **Why the prediction overshoots for condition 4.** The prediction uses the saved final-run outputs, and none of the
+  126 *off* outputs is identical to its saved counterpart (0% for both models): the engine here batches differently
+  from the final evaluation, so outputs diverge after some point (§11.3). The *off* runs produced fewer loops than
+  the saved outputs (the check fired 22 times for condition 4 against 33 predicted stops; 46 truncated against 51)
+  and fewer tokens, so the exact saving on the *off* outputs is already lower (20.4%). The *on* run diverges again:
+  among requests not stopped, 22.8% (condition 4) and 37.6% (condition 3) of outputs are identical between *off*
+  and *on*. The prediction is therefore a statement about the saved outputs, not about a fresh generation.
+- **Wall time.** Generation time fell more than tokens for both models (17.1% and 19.7% against 14.9% and 12.0%),
+  against the stated expectation. Tokens per second rose (by 2.6% and 9.7%), preemptions fell to zero (from 1 and
+  7) and peak resident tokens fell by 40% and 29%. One run per mode, so this is described, not tested; the larger
+  KV cache of the 80GB card (hardware note above) may make it differ from a 40GB run.
+- **Stops.** The *on* runs stopped 34 (condition 4) and 17 (condition 3) requests. In the *off* runs no stop would
+  have changed a grade.
+- **Records:** in `MyDrive/hpml_loopstop/ls/c4` and `.../ls/c3` as listed above.
